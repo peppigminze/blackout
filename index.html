@@ -170,7 +170,7 @@
       <input type="file" id="importFile" accept="application/json" style="display:none">
     </div>
   </div>
-  <div class="credit">v1.3 · BLACKOUT</div>
+  <div class="credit">v1.4 · BLACKOUT</div>
 </div>
 
 <div class="screen" id="scr-how">
@@ -259,7 +259,7 @@
 
 <script>
 "use strict";
-/* ================= BLACKOUT v1.3 ================= */
+/* ================= BLACKOUT v1.4 ================= */
 
 /* ---- Storage (localStorage + Fallback) ---- */
 const Store=(()=>{let mem={},ok=false;
@@ -456,27 +456,29 @@ function hexA(hex,a){if(hex.startsWith("hsl"))return hex.replace("hsl","hsla").r
 const WORLDS=[
   {id:1,name:"Untergassen",short:"Verrostete Tunnel unter der Stadt.",color:"#3fb0ff",floor:"#0a1420",accent:"#2a6da8",
     levels:[
-      {kills:14,spawn:1.25,maxAlive:7, pool:["crawler","crawler","darter"]},
-      {kills:18,spawn:1.1, maxAlive:8, pool:["crawler","darter","darter"]},
-      {kills:20,spawn:1.0, maxAlive:9, pool:["crawler","darter","spitter"]},
-      {kills:24,spawn:0.95,maxAlive:10,pool:["darter","spitter","brute"]},
-      {kills:12,spawn:1.1, maxAlive:8, pool:["crawler","darter"], boss:"boss1"}
+      {kills:14,spawn:1.35,maxAlive:6, pool:["crawler","crawler","darter"]},
+      {kills:18,spawn:1.2, maxAlive:7, pool:["crawler","darter","darter"]},
+      {kills:20,spawn:1.1, maxAlive:8, pool:["crawler","darter","spitter"]},
+      {kills:24,spawn:1.05,maxAlive:9, pool:["darter","spitter","brute"]},
+      {kills:10,spawn:1.2, maxAlive:7, pool:["crawler","darter"], boss:"boss1", curseOffers:[0]}
     ]},
   {id:2,name:"Neon-Ödland",short:"Verglühte Reklamen, hungrige Schatten.",color:"#ff4fd8",floor:"#15091e",accent:"#a03aa0",
     levels:[
-      {kills:20,spawn:1.05,maxAlive:9, pool:["darter","spitter","crawler"]},
-      {kills:24,spawn:0.95,maxAlive:10,pool:["darter","brute","spitter","phantom"]},
-      {kills:26,spawn:0.9, maxAlive:11,pool:["brute","screecher","darter","phantom"]},
-      {kills:28,spawn:0.85,maxAlive:11,pool:["screecher","brute","spitter","darter","phantom"]},
-      {kills:14,spawn:1.0, maxAlive:9, pool:["darter","spitter","phantom"], boss:"boss2"}
+      {kills:20,spawn:1.05,maxAlive:9, pool:["darter","spitter","crawler"], curseOffers:[0]},
+      {kills:24,spawn:0.95,maxAlive:10,pool:["darter","brute","spitter","phantom"], curseOffers:[0,0.5]},
+      {kills:26,spawn:0.9, maxAlive:11,pool:["brute","screecher","darter","phantom"], curseOffers:[0,0.5],
+        miniboss:{type:"boss2",hpScale:0.35,atFrac:0.5}},
+      {kills:28,spawn:0.85,maxAlive:11,pool:["screecher","brute","spitter","darter","phantom"], curseOffers:[0,0.33,0.66]},
+      {kills:14,spawn:1.0, maxAlive:9, pool:["darter","spitter","phantom"], boss:"boss2", curseOffers:[0,0.79]}
     ]},
   {id:3,name:"Die Leere",short:"Wo das Licht endgültig aufgibt.",color:"#ffd35c",floor:"#0b0b12",accent:"#7a6a2a",
     levels:[
-      {kills:26,spawn:0.95,maxAlive:11,pool:["brute","darter","screecher"]},
-      {kills:30,spawn:0.88,maxAlive:12,pool:["brute","screecher","spitter","husk"]},
-      {kills:32,spawn:0.82,maxAlive:12,pool:["brute","screecher","darter","spitter","husk"]},
-      {kills:34,spawn:0.78,maxAlive:13,pool:["brute","screecher","spitter","darter","husk"]},
-      {kills:16,spawn:0.95,maxAlive:10,pool:["brute","spitter","husk"], boss:"boss3"}
+      {kills:26,spawn:0.95,maxAlive:11,pool:["brute","darter","screecher"], curseOffers:[0,0.5]},
+      {kills:30,spawn:0.88,maxAlive:12,pool:["brute","screecher","spitter","husk"], curseOffers:[0,0.33,0.66]},
+      {kills:32,spawn:0.82,maxAlive:12,pool:["brute","screecher","darter","spitter","husk"], curseOffers:[0,0.33,0.66],
+        miniboss:{type:"boss3",hpScale:0.4,atFrac:0.5}},
+      {kills:34,spawn:0.78,maxAlive:13,pool:["brute","screecher","spitter","darter","husk"], curseOffers:[0,0.25,0.5,0.75]},
+      {kills:16,spawn:0.95,maxAlive:10,pool:["brute","spitter","husk"], boss:"boss3", curseOffers:[0,0.5625,0.875]}
     ]}
 ];
 function worldById(id){return WORLDS.find(w=>w.id===id);}
@@ -490,7 +492,7 @@ const ENEMIES={
   spitter:  {hp:4, speed:70, dmg:6,  r:12, pts:260, color:"#ffca4d", spits:true},
   phantom:  {hp:4, speed:130,dmg:11, r:12, pts:220, color:"#b98cff", cloak:true},
   husk:     {hp:8, speed:52, dmg:14, r:16, pts:280, color:"#ff6a3d", explodes:true},
-  boss1:    {hp:70, speed:56, dmg:20, r:34, pts:1800, color:"#4fd0ff", boss:true, shootCd:2.0, pattern:1},
+  boss1:    {hp:58, speed:56, dmg:20, r:34, pts:1800, color:"#4fd0ff", boss:true, shootCd:2.0, pattern:1},
   boss2:    {hp:110,speed:60, dmg:24, r:38, pts:2600, color:"#ff4fd8", boss:true, shootCd:1.8, pattern:2},
   boss3:    {hp:160,speed:64, dmg:28, r:42, pts:3400, color:"#ffd35c", boss:true, shootCd:1.6, pattern:3}
 };
@@ -513,6 +515,49 @@ const POWERS={
   pierce:{name:"Durchschuss",color:"#3fe0ff"}
 };
 const POWER_DUR=10;
+
+const CURSES={
+  eagle_eye:  {name:"Verstärkter Blick",  desc:"Aura −30%, dafür +25% Score pro Kill.", world:0},
+  fragile:    {name:"Zerbrechlich",        desc:"Max-HP −25%, dafür sofort ein zusätzliches Powerup.", world:0},
+  breathless: {name:"Kurzatmig",           desc:"Dash-Cooldown +50%, dafür Lauftempo +20%.", world:0},
+  silent_rage:{name:"Stille Wut",          desc:"Feuerrate −20%, dafür Schaden pro Treffer +40%.", world:0},
+  the_pull:   {name:"Der Sog",             desc:"Mehr Gegner gleichzeitig, dafür +35% Score pro Kill.", world:0},
+  ghost_hunter:{name:"Geisterjäger",       desc:"Blackout-Phasen dauern länger, dafür doppelte Cosmetic-Drop-Chance.", world:3}
+};
+function pickCurse(){const pool=Object.keys(CURSES).filter(id=>!game.curses.includes(id)&&(CURSES[id].world===0||CURSES[id].world===game.world.id));
+  return pool.length?pool[Math.floor(Math.random()*pool.length)]:null;}
+function recalcCurseMods(){const c=game.curses,p=game.player;
+  game.curseScoreMult=1+(c.includes("eagle_eye")?0.25:0)+(c.includes("the_pull")?0.35:0);
+  game.curseAuraMult=c.includes("eagle_eye")?0.7:1;
+  game.curseSpawnMult=c.includes("the_pull")?0.85:1;
+  game.curseDropMult=c.includes("ghost_hunter")?2:1;
+  game.curseBlackoutMult=c.includes("ghost_hunter")?1.5:1;
+  p.fireRateMult=c.includes("silent_rage")?1.25:1;
+  p.dmgMult=c.includes("silent_rage")?1.4:1;
+  p.dashCdMult=c.includes("breathless")?1.5:1;
+  p.speedMult=c.includes("breathless")?1.2:1;}
+function applyCurse(id){game.curses.push(id);
+  if(id==="fragile"){const p=game.player,ratio=p.hp/p.maxhp;p.maxhp=Math.round(p.maxhp*0.75);p.hp=Math.max(1,Math.round(p.maxhp*ratio));
+    const keys=Object.keys(POWERS);spawnPickup(p.x+rand(-40,40),p.y+rand(-40,40),"power",keys[Math.floor(Math.random()*keys.length)]);}
+  recalcCurseMods();}
+function offerCurse(id){const c=CURSES[id];game.curseChoicePending=true;
+  const stale=document.getElementById("curseOffer");if(stale)stale.remove();
+  const el=document.createElement("div");el.id="curseOffer";
+  el.style.cssText="position:fixed;inset:0;z-index:90;background:#05070dee;display:flex;align-items:center;justify-content:center;padding:24px;";
+  el.innerHTML=`<div style="background:#150d1f;border:1px solid #3a1e4a;border-radius:18px;padding:26px;max-width:380px;width:100%;text-align:center;">
+    <div style="font-size:12px;letter-spacing:.12em;color:var(--danger);margin-bottom:8px;">⚠ FLUCH ANGEBOTEN</div>
+    <h2 style="margin:0 0 10px;color:#ff8fd0;">${c.name}</h2>
+    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:22px;">${c.desc}</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn" id="curseAccept">Fluch annehmen</button>
+      <button class="btn ghost" id="curseDecline">Ablehnen</button>
+    </div></div>`;
+  document.body.appendChild(el);
+  document.getElementById("curseAccept").onclick=()=>{applyCurse(id);el.remove();game.curseChoicePending=false;lastT=performance.now();showToast(`Fluch aktiv: ${c.name}`,1900);updateHud();};
+  document.getElementById("curseDecline").onclick=()=>{el.remove();game.curseChoicePending=false;lastT=performance.now();};}
+function checkCurseOffer(){if(game.curseChoicePending)return;
+  for(const k of game.curseOfferKills){if(game.curseOfferedThresholds.has(k))continue;
+    if(game.kills>=k){game.curseOfferedThresholds.add(k);const id=pickCurse();if(id)offerCurse(id);return;}}}
 
 /* ================= Canvas ================= */
 const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
@@ -550,13 +595,16 @@ const game={state:"menu",world:null,levelIdx:0,cfg:null,
   killsNeeded:0,kills:0,score:0,combo:0,maxCombo:0,comboTimer:0,spawnTimer:0,alive:0,t:0,
   bossSpawned:false,bossKilled:false,cam:{x:0,y:0},arenaW:0,arenaH:0,pingCd:0,shake:0,
   gotCosmetics:[],godMode:false,levelMod:null,blindTimer:0,
-  blackoutActive:false,blackoutTimer:0,blackoutDur:0};
+  blackoutActive:false,blackoutTimer:0,blackoutDur:0,
+  curses:[],curseChoicePending:false,curseOfferKills:[],curseOfferedThresholds:new Set(),
+  curseScoreMult:1,curseAuraMult:1,curseSpawnMult:1,curseDropMult:1,curseBlackoutMult:1,
+  minibossSpawned:false};
 const ARENA_MARGIN=60;
 const AURA=160;                 // Aura-Sichtradius
 const PING_R=300, PING_SPD=640, PING_CD=2.2, PING_NOISE=300;
 const DASH_SPD=620, DASH_TIME=0.18, DASH_CD=1.6;
 const BLACKOUT_GAP_MIN=7, BLACKOUT_GAP_MAX=11, BLACKOUT_DUR_MIN=3, BLACKOUT_DUR_MAX=5, BLACKOUT_AURA=22;
-function currentAuraR(){return(game.world&&game.world.id===3&&game.blackoutActive)?BLACKOUT_AURA:AURA;}
+function currentAuraR(){const base=(game.world&&game.world.id===3&&game.blackoutActive)?BLACKOUT_AURA:AURA;return base*(game.curseAuraMult||1);}
 
 /* ================= Input ================= */
 const keys={};
@@ -610,7 +658,7 @@ function doDash(){if(game.state!=="playing"||!game.player)return;const p=game.pl
   if(touchMove.active){mx+=touchMove.dx;my+=touchMove.dy;}
   const mag=Math.hypot(mx,my);
   p.dashDir=mag>0.15?Math.atan2(my,mx):p.dir;
-  p.dashing=DASH_TIME;p.dashCd=DASH_CD;p.inv=Math.max(p.inv,DASH_TIME+0.1);
+  p.dashing=DASH_TIME;p.dashCd=DASH_CD*(p.dashCdMult||1);p.inv=Math.max(p.inv,DASH_TIME+0.1);
   Audio_.ensure();Audio_.dash();}
 
 /* ================= Level start ================= */
@@ -628,9 +676,13 @@ function startLevel(worldId,levelIdx){
   game.blindTimer=game.levelMod==="blind_start"?10:0;
   game.blackoutActive=false;game.blackoutDur=0;
   game.blackoutTimer=world.id===3?rand(BLACKOUT_GAP_MIN,BLACKOUT_GAP_MAX):0;
+  game.curses=[];game.curseChoicePending=false;game.curseOfferedThresholds=new Set();
+  game.curseScoreMult=1;game.curseAuraMult=1;game.curseSpawnMult=1;game.curseDropMult=1;game.curseBlackoutMult=1;
+  game.minibossSpawned=false;
+  game.curseOfferKills=[...new Set((cfg.curseOffers||[]).map(f=>Math.round(f*cfg.kills)))].sort((a,b)=>a-b);
   const eq=structuredClone(save.equipped);
   game.player={x:game.arenaW/2,y:game.arenaH/2,r:15,hp:100,maxhp:100,speed:188,dir:-Math.PI/2,fireCd:0,inv:0,eq,
-    buff:null,buffTime:0,dashCd:0,dashing:0,dashDir:0};
+    buff:null,buffTime:0,dashCd:0,dashing:0,dashDir:0,fireRateMult:1,dmgMult:1,dashCdMult:1,speedMult:1};
   game.obstacles=[];const nObs=3+Math.floor(Math.random()*3);
   const moving=world.id===2;
   for(let i=0;i<nObs;i++){let ox,oy,tr=0;
@@ -645,6 +697,7 @@ function startLevel(worldId,levelIdx){
   updateHud();Audio_.ensure();lastT=performance.now();requestAnimationFrame(loop);
   const modLabel=game.levelMod?` — ${LEVEL_MODS[game.levelMod].label}`:"";
   showToast(`${world.name} · Level ${levelIdx+1}${modLabel}`,2000);
+  checkCurseOffer();
 }
 
 /* ================= Spawning ================= */
@@ -687,6 +740,7 @@ function loop(now){if(game.state!=="playing")return;
   let dt=(now-lastT)/1000;lastT=now;dt=Math.min(dt,0.05);update(dt);render();requestAnimationFrame(loop);}
 
 function update(dt){
+  if(game.curseChoicePending)return;
   game.t+=dt;const p=game.player;
   if(game.pingCd>0)game.pingCd-=dt;
   if(game.blindTimer>0)game.blindTimer-=dt;
@@ -695,7 +749,7 @@ function update(dt){
     if(game.blackoutActive){game.blackoutDur-=dt;
       if(game.blackoutDur<=0){game.blackoutActive=false;game.blackoutTimer=rand(BLACKOUT_GAP_MIN,BLACKOUT_GAP_MAX);}}
     else{game.blackoutTimer-=dt;
-      if(game.blackoutTimer<=0){game.blackoutActive=true;game.blackoutDur=rand(BLACKOUT_DUR_MIN,BLACKOUT_DUR_MAX);
+      if(game.blackoutTimer<=0){game.blackoutActive=true;game.blackoutDur=rand(BLACKOUT_DUR_MIN,BLACKOUT_DUR_MAX)*(game.curseBlackoutMult||1);
         showToast("⚠ BLACKOUT",1300);Audio_.enemyShot();}}}
   const spawnLater=[];
 
@@ -712,8 +766,8 @@ function update(dt){
     p.y=clamp(p.y+Math.sin(p.dashDir)*DASH_SPD*dt,ARENA_MARGIN,game.arenaH-ARENA_MARGIN);
     addParticle(p.x,p.y,auraColor(save.equipped.aura,game.t),2,50);
   }else{
-    p.x=clamp(p.x+mx*p.speed*dt,ARENA_MARGIN,game.arenaW-ARENA_MARGIN);
-    p.y=clamp(p.y+my*p.speed*dt,ARENA_MARGIN,game.arenaH-ARENA_MARGIN);
+    p.x=clamp(p.x+mx*p.speed*(p.speedMult||1)*dt,ARENA_MARGIN,game.arenaW-ARENA_MARGIN);
+    p.y=clamp(p.y+my*p.speed*(p.speedMult||1)*dt,ARENA_MARGIN,game.arenaH-ARENA_MARGIN);
   }
   for(const o of game.obstacles){
     if(o.moving){o.x+=o.vx*dt;o.y+=o.vy*dt;
@@ -747,11 +801,13 @@ function update(dt){
     const rush=game.levelMod==="rush";
     if(game.spawnTimer<=0&&game.alive<cfg.maxAlive&&(game.kills+game.alive)<cap){
       spawnEnemy(cfg.pool[Math.floor(Math.random()*cfg.pool.length)],rush?0.55:1);
-      game.spawnTimer=cfg.spawn*rand(0.7,1.15)*(rush?0.5:1);}
+      game.spawnTimer=cfg.spawn*rand(0.7,1.15)*(rush?0.5:1)*(game.curseSpawnMult||1);}
     if(cfg.boss&&game.kills>=game.killsNeeded-1&&game.alive===0){
       if(game.levelMod==="double_boss"){spawnEnemy(cfg.boss,0.62);spawnEnemy(cfg.boss,0.62);}
       else spawnEnemy(cfg.boss);
       game.bossSpawned=true;}
+    if(cfg.miniboss&&!game.minibossSpawned&&game.kills>=Math.round(cfg.miniboss.atFrac*cfg.kills)){
+      game.minibossSpawned=true;spawnEnemy(cfg.miniboss.type,cfg.miniboss.hpScale);showToast("⚠ Elite-Gegner",1400);}
   }
 
   // noises -> targets
@@ -801,9 +857,9 @@ function update(dt){
   if(p.fireCd<=0){let target=null,bd=1e9;
     for(const e of game.enemies){if(e.vis<0.28)continue;const d=Math.hypot(e.x-p.x,e.y-p.y);
       if(d<560&&d<bd){bd=d;target=e;}}
-    if(target){p.fireCd=p.buff==="rapid"?0.13:0.24;p.dir=Math.atan2(target.y-p.y,target.x-p.x);const sp=580;
-      const pierce=p.buff==="pierce";
-      const mkBullet=ang=>game.bullets.push({x:p.x+Math.cos(ang)*p.r,y:p.y+Math.sin(ang)*p.r,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:1.1,dmg:1,pierce});
+    if(target){p.fireCd=(p.buff==="rapid"?0.13:0.24)*(p.fireRateMult||1);p.dir=Math.atan2(target.y-p.y,target.x-p.x);const sp=580;
+      const pierce=p.buff==="pierce";const dmg=1*(p.dmgMult||1);
+      const mkBullet=ang=>game.bullets.push({x:p.x+Math.cos(ang)*p.r,y:p.y+Math.sin(ang)*p.r,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:1.1,dmg,pierce});
       mkBullet(p.dir);if(p.buff==="double")mkBullet(p.dir+0.12);
       emitNoise(p.x,p.y,200,true);Audio_.shot();}}
 
@@ -850,11 +906,11 @@ function killEnemy(e){
     if(d<R){if(!game.godMode)p.hp-=10;p.inv=Math.max(p.inv,0.5);
       const kb=Math.atan2(p.y-e.y,p.x-e.x);p.x+=Math.cos(kb)*40;p.y+=Math.sin(kb)*40;
       game.shake=Math.max(game.shake,14);Audio_.hurt();updateHud();if(p.hp<=0){p.hp=0;gameOver();}}}
-  game.kills++;game.combo++;game.maxCombo=Math.max(game.maxCombo,game.combo);game.comboTimer=2.2;
-  const mult=1+Math.min(game.combo-1,9)*0.15;game.score+=Math.round(e.pts*mult);
+  game.kills++;game.combo++;game.maxCombo=Math.max(game.maxCombo,game.combo);game.comboTimer=2.2;checkCurseOffer();
+  const mult=1+Math.min(game.combo-1,9)*0.15;game.score+=Math.round(e.pts*mult*(game.curseScoreMult||1));
   if(game.combo>=3)showCombo(game.combo);save.totalKills++;
   if(e.boss){game.bossKilled=true;game.shake=18;tryDropCosmetic(e.x,e.y);}   // Boss: garantierter Drop-Versuch
-  else if(Math.random()<0.09)tryDropCosmetic(e.x,e.y);                        // erhöhte Drop-Chance
+  else if(Math.random()<0.09*(game.curseDropMult||1))tryDropCosmetic(e.x,e.y);                        // erhöhte Drop-Chance
   else if(Math.random()<0.07){const pk=Object.keys(POWERS);spawnPickup(e.x,e.y,"power",pk[Math.floor(Math.random()*pk.length)]);}
   else if(Math.random()<0.12)spawnPickup(e.x,e.y,"health");
   game.enemies=game.enemies.filter(en=>!en.dead);updateHud();
@@ -959,7 +1015,8 @@ function updateHud(){const p=game.player;if(!p)return;
   document.getElementById("hudScore").textContent=game.score.toLocaleString("de-CH");
   document.getElementById("hudBuff").textContent=p.buff?`${POWERS[p.buff].name} ${Math.ceil(p.buffTime)}s`:"";
   document.getElementById("hudKills").textContent=game.cfg.boss?`${game.kills}/${game.killsNeeded} + Boss`:`${game.kills} / ${game.killsNeeded} Kills`;
-  document.getElementById("hudLevel").textContent=`${game.world.name} · Lvl ${game.levelIdx+1}`+(game.levelMod?` · ${LEVEL_MODS[game.levelMod].label}`:"");}
+  const curseLabel=game.curses.length?` · 🔮${game.curses.map(id=>CURSES[id].name).join(", ")}`:"";
+  document.getElementById("hudLevel").textContent=`${game.world.name} · Lvl ${game.levelIdx+1}`+(game.levelMod?` · ${LEVEL_MODS[game.levelMod].label}`:"")+curseLabel;}
 let comboTO;function showCombo(c){const el=document.getElementById("comboLbl");el.textContent=`${c}× COMBO`;
   el.classList.add("show");clearTimeout(comboTO);comboTO=setTimeout(()=>el.classList.remove("show"),700);}
 function hideCombo(){document.getElementById("comboLbl").classList.remove("show");}
