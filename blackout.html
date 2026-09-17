@@ -588,7 +588,7 @@ const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 function addParticle(x,y,color,n,spd){for(let i=0;i<n;i++){const a=rand(0,7),s=rand(spd*0.3,spd);
   game.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(0.3,0.7),max:0.7,color,r:rand(1.5,3.5)});}}
 function emitNoise(x,y,radius,alert){game.noises.push({x,y,radius,alert});}
-function addPulse(x,y,maxR,speed,thick,color){game.pulses.push({x,y,r:0,maxR,speed,thick,color,life:1});}
+function addPulse(x,y,maxR,speed,thick,color,owner){game.pulses.push({x,y,r:0,maxR,speed,thick,color,life:1,owner:owner||"player"});}
 
 const PING_KB_R=90, PING_KB_FORCE=160;
 function doPing(){if(game.state!=="playing"||game.pingCd>0||!game.player)return;
@@ -733,7 +733,9 @@ function update(dt){
 
   // pulses
   for(const pl of game.pulses){const pr=pl.r;pl.r+=pl.speed*dt;if(pl.r>pl.maxR)pl.life=0;
-    const sweep=o=>{const d=Math.hypot(o.x-pl.x,o.y-pl.y);if(d>pr-pl.thick&&d<pl.r+pl.thick)o.pulseT=game.t;};
+    const muted=pl.owner==="enemy"&&game.world.id===3&&game.blackoutActive;
+    const sweep=o=>{if(muted)return;const d=Math.hypot(o.x-pl.x,o.y-pl.y);
+      if(d>pr-pl.thick&&d<pl.r+pl.thick)o.pulseT=pl.owner==="enemy"?game.t-0.45:game.t;};
     game.enemies.forEach(sweep);game.pickups.forEach(sweep);}
   game.pulses=game.pulses.filter(pl=>pl.life>0);
 
@@ -772,7 +774,7 @@ function update(dt){
     if(base.darts){e.dashCd-=dt;if(e.dashCd<=0){e.dashCd=rand(0.7,1.4);e.lunge=0.28;}
       if(e.lunge>0){spd*=2.5;e.lunge-=dt;}}
     if(base.screech){e.screechCd-=dt;if(e.screechCd<=0&&dToP<440){e.screechCd=rand(3,5);
-      emitNoise(p.x,p.y,520,true);addPulse(e.x,e.y,240,560,16,"#ff4fd8");}}
+      emitNoise(p.x,p.y,520,true);addPulse(e.x,e.y,190,560,16,"#ff4fd8","enemy");}}
     if(base.spits){e.spitCd-=dt;if(e.spitCd<=0&&dToP<520){e.spitCd=rand(2.0,3.0);
       const a=Math.atan2(p.y-e.y,p.x-e.x),bs=180;
       game.enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*bs,vy:Math.sin(a)*bs,life:3.8,dmg:8,r:7,color:"#ffca4d"});
@@ -890,7 +892,8 @@ function render(){
     ctx.beginPath();ctx.arc(pl.x,pl.y,pl.r,0,7);ctx.stroke();}
 
   for(const o of game.obstacles){const d=Math.hypot(o.x-p.x,o.y-p.y);let vis=clamp(1-d/(220*(auraR/AURA)),0,1);
-    for(const pl of game.pulses)if(Math.abs(Math.hypot(o.x-pl.x,o.y-pl.y)-pl.r)<pl.thick+o.r)vis=Math.max(vis,0.9);
+    for(const pl of game.pulses){if(pl.owner==="enemy"&&game.world.id===3&&game.blackoutActive)continue;
+      if(Math.abs(Math.hypot(o.x-pl.x,o.y-pl.y)-pl.r)<pl.thick+o.r)vis=Math.max(vis,pl.owner==="enemy"?0.45:0.9);}
     if(vis<0.04)continue;ctx.globalAlpha=vis;ctx.fillStyle="#111a2e";ctx.strokeStyle=hexA(game.world.color,0.5);ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,7);ctx.fill();ctx.stroke();ctx.globalAlpha=1;}
 
@@ -1063,10 +1066,17 @@ function buildLevels(wid){const w=worldById(wid);
 function drawCosmeticPreview(c,id,size){c.clearRect(0,0,size,size);const cx=size/2,cy=size/2,r=size*0.28;
   const eq=structuredClone(save.equipped);const slot=COSMETICS[id]?COSMETICS[id].slot:null;if(slot)eq[slot]=id;
   drawCharacter(c,cx,cy,r,eq,{dir:-Math.PI/2},performance.now()/1000,true);}
-let previewRAF=null;
-function animatePreview(){const pc=document.getElementById("previewCanvas").getContext("2d");
-  pc.clearRect(0,0,220,220);drawCharacter(pc,110,110,48,save.equipped,{dir:-Math.PI/2},performance.now()/1000,true);
-  if(document.getElementById("scr-char").classList.contains("active"))previewRAF=requestAnimationFrame(animatePreview);else previewRAF=null;}
+let previewRAF=null,previewLastT=0,charScrollingUntil=0;
+function animatePreview(){
+  if(!document.getElementById("scr-char").classList.contains("active")){previewRAF=null;return;}
+  const now=performance.now();
+  if(now>charScrollingUntil&&now-previewLastT>40){previewLastT=now;
+    const pc=document.getElementById("previewCanvas").getContext("2d");
+    pc.clearRect(0,0,220,220);drawCharacter(pc,110,110,48,save.equipped,{dir:-Math.PI/2},now/1000,true);}
+  previewRAF=requestAnimationFrame(animatePreview);
+}
+document.getElementById("scr-char").addEventListener("scroll",()=>{charScrollingUntil=performance.now()+220;},{passive:true});
+document.getElementById("scr-char").addEventListener("touchmove",()=>{charScrollingUntil=performance.now()+220;},{passive:true});
 function buildCharacter(){
   document.getElementById("c-cos").textContent=`${save.owned.length}/${Object.keys(COSMETICS).length}`;
   const slotsEl=document.getElementById("slots");slotsEl.innerHTML="";
