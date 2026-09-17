@@ -729,7 +729,7 @@ function doDash(){if(game.state!=="playing"||!game.player)return;const p=game.pl
 function startLevel(worldId,levelIdx){
   const world=worldById(worldId),cfg=world.levels[levelIdx];
   game.world=world;game.levelIdx=levelIdx;game.cfg=cfg;
-  game.levelMod=world.id===4?null:pickLevelMod(cfg);
+  game.levelMod=(world.id===4||(world.id===1&&levelIdx<2))?null:pickLevelMod(cfg);
   const tight=game.levelMod==="tight_arena";
   game.arenaW=Math.round(Math.max(1150,W*1.4)*(tight?0.72:1));
   game.arenaH=Math.round(Math.max(1150,H*1.4)*(tight?0.72:1));
@@ -748,7 +748,7 @@ function startLevel(worldId,levelIdx){
   game.curseOfferKills=[...new Set((cfg.curseOffers||[]).map(f=>Math.round(f*cfg.kills)))].sort((a,b)=>a-b);
   const eq=structuredClone(save.equipped);
   game.player={x:game.arenaW/2,y:game.arenaH/2,r:15,hp:100,maxhp:100,speed:188,dir:-Math.PI/2,fireCd:0,inv:0,eq,
-    buff:null,buffTime:0,dashCd:0,dashing:0,dashDir:0,fireRateMult:1,dmgMult:1,dashCdMult:1,speedMult:1};
+    buffs:{},dashCd:0,dashing:0,dashDir:0,fireRateMult:1,dmgMult:1,dashCdMult:1,speedMult:1};
   game.obstacles=[];const nObs=3+Math.floor(Math.random()*3);
   const moving=world.id===2||world.id===4;
   for(let i=0;i<nObs;i++){let ox,oy,tr=0;
@@ -863,8 +863,9 @@ function update(dt){
     if(d<min&&d>0){p.x=o.x+dx/d*min;p.y=o.y+dy/d*min;}}
   if(moving&&p.dashing<=0){p.dir=Math.atan2(my,mx);emitNoise(p.x,p.y,95,false);}
   if(p.inv>0)p.inv-=dt;
-  if(p.buffTime>0){p.buffTime-=dt;document.getElementById("hudBuff").textContent=`${POWERS[p.buff].name} ${Math.ceil(p.buffTime)}s`;
-    if(p.buffTime<=0){p.buff=null;p.buffTime=0;document.getElementById("hudBuff").textContent="";}}
+  for(const k of Object.keys(p.buffs)){p.buffs[k]-=dt;if(p.buffs[k]<=0)delete p.buffs[k];}
+  {const bk=Object.keys(p.buffs);
+    document.getElementById("hudBuff").textContent=bk.length?bk.map(k=>`${POWERS[k].name} ${Math.ceil(p.buffs[k])}s`).join(" · "):"";}
 
   game.cam.x=clamp(p.x-W/2,0,Math.max(0,game.arenaW-W));
   game.cam.y=clamp(p.y-H/2,0,Math.max(0,game.arenaH-H));
@@ -942,10 +943,10 @@ function update(dt){
   if(p.fireCd<=0){let target=null,bd=1e9;
     for(const e of game.enemies){if(e.vis<0.28)continue;const d=Math.hypot(e.x-p.x,e.y-p.y);
       if(d<560&&d<bd){bd=d;target=e;}}
-    if(target){p.fireCd=(p.buff==="rapid"?0.13:0.24)*(p.fireRateMult||1);p.dir=Math.atan2(target.y-p.y,target.x-p.x);const sp=580;
-      const pierce=p.buff==="pierce";const dmg=1*(p.dmgMult||1);
+    if(target){p.fireCd=(p.buffs.rapid?0.13:0.24)*(p.fireRateMult||1);p.dir=Math.atan2(target.y-p.y,target.x-p.x);const sp=580;
+      const pierce=!!p.buffs.pierce;const dmg=1*(p.dmgMult||1);
       const mkBullet=ang=>game.bullets.push({x:p.x+Math.cos(ang)*p.r,y:p.y+Math.sin(ang)*p.r,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:1.1,dmg,pierce});
-      mkBullet(p.dir);if(p.buff==="double")mkBullet(p.dir+0.12);
+      mkBullet(p.dir);if(p.buffs.double)mkBullet(p.dir+0.12);
       emitNoise(p.x,p.y,200,true);Audio_.shot();}}
 
   // player bullets
@@ -1038,7 +1039,7 @@ function collectPickup(pk){const p=game.player;
   if(pk.kind==="cosmetic"){const un=unownedOfWorld(game.world.id);if(un.length===0){game.score+=200;Audio_.pickup();return;}
     const id=un[Math.floor(Math.random()*un.length)];save.owned.push(id);game.gotCosmetics.push(id);persist();
     Audio_.pickup();addParticle(pk.x,pk.y,"#ffd35c",16,160);showToast(`🎁 Neu: ${cosName(id)}`,1800);return;}
-  if(pk.kind==="power"){p.buff=pk.sub;p.buffTime=POWER_DUR;Audio_.pickup();
+  if(pk.kind==="power"){p.buffs[pk.sub]=POWER_DUR;Audio_.pickup();
     addParticle(pk.x,pk.y,POWERS[pk.sub].color,14,150);showToast(`⚡ ${POWERS[pk.sub].name}!`,1500);}}
 
 /* ================= Render ================= */
@@ -1220,7 +1221,7 @@ document.getElementById("btnEpilogueChar").onclick=()=>{save.equipped.skin="skin
 function updateHud(){const p=game.player;if(!p)return;
   document.getElementById("hpFill").style.width=(p.hp/p.maxhp*100)+"%";
   document.getElementById("hudScore").textContent=game.score.toLocaleString("de-CH");
-  document.getElementById("hudBuff").textContent=p.buff?`${POWERS[p.buff].name} ${Math.ceil(p.buffTime)}s`:"";
+  {const bk=Object.keys(p.buffs);document.getElementById("hudBuff").textContent=bk.length?bk.map(k=>`${POWERS[k].name} ${Math.ceil(p.buffs[k])}s`).join(" · "):"";}
   document.getElementById("hudKills").textContent=game.cfg.boss?`${game.kills}/${game.killsNeeded} + Boss`:`${game.kills} / ${game.killsNeeded} Kills`;
   const curseLabel=game.curses.length?` · 🔮${game.curses.map(id=>CURSES[id].name).join(", ")}`:"";
   document.getElementById("hudLevel").textContent=`${game.world.name} · Lvl ${game.levelIdx+1}`+(game.levelMod?` · ${LEVEL_MODS[game.levelMod].label}`:"")+curseLabel;}
@@ -1273,14 +1274,14 @@ function showResult(win,info){
       ${win&&!isLast?'<button class="btn primary" id="rNext">Nächstes Level →</button>':''}
       ${win&&isLast&&game.world.id<3?'<button class="btn primary" id="rNextWorld">Nächste Welt →</button>':''}
       <button class="btn" id="rRetry">${win?'Wiederholen':'Nochmal'}</button>
-      <button class="btn ghost" id="rMenu">Charakter / Menü</button>
+      <button class="btn ghost" id="rMenu">Menü</button>
     </div>`;
   showScreen("result");
   if(win&&info.reward)drawCosmeticPreview(document.getElementById("rewardCv").getContext("2d"),info.reward,48);
   const nx=document.getElementById("rNext");if(nx)nx.onclick=()=>startLevelFade(game.world.id,game.levelIdx+1);
   const nw=document.getElementById("rNextWorld");if(nw)nw.onclick=()=>goToWorld(game.world.id+1);
   document.getElementById("rRetry").onclick=()=>startLevelFade(game.world.id,game.levelIdx);
-  document.getElementById("rMenu").onclick=()=>{buildCharacter();showScreen("char");};
+  document.getElementById("rMenu").onclick=()=>{refreshMenuStats();showScreen("menu");};
 }
 function goToWorld(wid){buildLevels(wid);showScreen("levels");}
 
