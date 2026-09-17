@@ -558,7 +558,9 @@ const CURSES={
   the_pull:   {name:"Der Sog",             desc:"Mehr Gegner gleichzeitig, dafür +35% Score pro Kill.", world:0},
   ghost_hunter:{name:"Geisterjäger",       desc:"Blackout-Phasen dauern länger, dafür doppelte Cosmetic-Drop-Chance.", world:3}
 };
-function pickCurse(){const pool=Object.keys(CURSES).filter(id=>!game.curses.includes(id)&&(CURSES[id].world===0||CURSES[id].world===game.world.id));
+function pickCurse(){const pool=Object.keys(CURSES).filter(id=>{if(game.curses.includes(id))return false;
+  const w=CURSES[id].world;if(w===0)return true;if(id==="ghost_hunter")return game.world.id===3||game.world.id===4;
+  return w===game.world.id;});
   return pool.length?pool[Math.floor(Math.random()*pool.length)]:null;}
 function recalcCurseMods(){const c=game.curses,p=game.player;
   game.curseScoreMult=1+(c.includes("eagle_eye")?0.25:0)+(c.includes("the_pull")?0.35:0);
@@ -587,8 +589,8 @@ function offerCurse(id){const c=CURSES[id];game.curseChoicePending=true;
       <button class="btn ghost" id="curseDecline">Ablehnen</button>
     </div></div>`;
   document.body.appendChild(el);
-  document.getElementById("curseAccept").onclick=()=>{applyCurse(id);el.remove();game.curseChoicePending=false;lastT=performance.now();showToast(`Fluch aktiv: ${c.name}`,1900);updateHud();};
-  document.getElementById("curseDecline").onclick=()=>{el.remove();game.curseChoicePending=false;lastT=performance.now();};}
+  document.getElementById("curseAccept").onclick=()=>{applyCurse(id);el.remove();game.curseChoicePending=false;lastT=performance.now();showToast(`Fluch aktiv: ${c.name}`,1900);updateHud();checkCurseOffer();};
+  document.getElementById("curseDecline").onclick=()=>{el.remove();game.curseChoicePending=false;lastT=performance.now();checkCurseOffer();};}
 function checkCurseOffer(){if(game.curseChoicePending)return;
   for(const k of game.curseOfferKills){if(game.curseOfferedThresholds.has(k))continue;
     if(game.kills>=k){game.curseOfferedThresholds.add(k);const id=pickCurse();if(id)offerCurse(id);return;}}}
@@ -727,7 +729,7 @@ function doDash(){if(game.state!=="playing"||!game.player)return;const p=game.pl
 function startLevel(worldId,levelIdx){
   const world=worldById(worldId),cfg=world.levels[levelIdx];
   game.world=world;game.levelIdx=levelIdx;game.cfg=cfg;
-  game.levelMod=pickLevelMod(cfg);
+  game.levelMod=world.id===4?null:pickLevelMod(cfg);
   const tight=game.levelMod==="tight_arena";
   game.arenaW=Math.round(Math.max(1150,W*1.4)*(tight?0.72:1));
   game.arenaH=Math.round(Math.max(1150,H*1.4)*(tight?0.72:1));
@@ -781,7 +783,7 @@ function startLevel(worldId,levelIdx){
 }
 
 /* ================= Spawning ================= */
-function spawnEnemy(type,hpScale){
+function spawnEnemy(type,hpScale,noMinions){
   const base=ENEMIES[type];if(!base)return;
   let x,y,tr=0;
   do{const side=Math.floor(Math.random()*4);
@@ -796,7 +798,7 @@ function spawnEnemy(type,hpScale){
   const e={type,x,y,hp,maxhp:hp,r:base.r,speed:base.speed*spMult,dmg:base.dmg,pts:base.pts,color:base.color,
     vis:0,pulseT:-99,alert:false,tx:game.player.x,ty:game.player.y,wander:rand(0,7),
     dashCd:rand(0.5,1.5),screechCd:rand(2,4),spitCd:rand(1,2),lunge:0,boss:!!base.boss,
-    shootCd:base.shootCd||0,pattern:base.pattern||0,minionCd:rand(4,6),lungeCd:2};
+    shootCd:base.shootCd||0,pattern:base.pattern||0,minionCd:rand(4,6),lungeCd:2,noMinions:!!noMinions};
   game.enemies.push(e);game.alive++;
   if(base.boss){Audio_.boss();showToast("⚠ BOSS",1400);game.shake=14;}
   return e;
@@ -889,7 +891,7 @@ function update(dt){
       else spawnEnemy(cfg.boss);
       game.bossSpawned=true;}
     if(cfg.miniboss&&!game.minibossSpawned&&game.kills>=Math.round(cfg.miniboss.atFrac*cfg.kills)){
-      game.minibossSpawned=true;spawnEnemy(cfg.miniboss.type,cfg.miniboss.hpScale);showToast("⚠ Elite-Gegner",1400);}
+      game.minibossSpawned=true;spawnEnemy(cfg.miniboss.type,cfg.miniboss.hpScale,true);showToast("⚠ Elite-Gegner",1400);}
   }
 
   // noises -> targets
@@ -920,7 +922,7 @@ function update(dt){
     if(e.boss){
       const enraged=e.type==="mrx"&&e.hp<e.maxhp*0.4;
       e.shootCd-=dt;if(e.shootCd<=0&&dToP<680){e.shootCd=base.shootCd*(enraged?0.65:1);fireBossPattern(e);}
-      e.minionCd-=dt;if(e.minionCd<=0){e.minionCd=rand(5,7);
+      e.minionCd-=dt;if(e.minionCd<=0&&!e.noMinions){e.minionCd=rand(5,7);
         const pool=cfg.pool;spawnLater.push(pool[Math.floor(Math.random()*pool.length)]);spawnLater.push(pool[Math.floor(Math.random()*pool.length)]);}
       e.lungeCd-=dt;if(e.lungeCd<=0&&dToP<440){e.lungeCd=rand(enraged?1.4:2.2,enraged?2.2:3.4);e.lunge=0.4;}
       if(e.lunge>0){spd*=enraged?2.6:2.2;e.lunge-=dt;}}
@@ -975,7 +977,7 @@ function update(dt){
     ln.vis=Math.max(aura,pv,0.15);
     if(!ln.found&&d<ln.r+p.r+8){ln.found=true;
       if(!save.loreFound.includes(ln.id)){save.loreFound.push(ln.id);persist();}
-      Audio_.pickup();addParticle(ln.x,ln.y,"#8fa4c8",14,120);showToast(`"${STORY_FRAGMENTS[ln.id]}"`,4200);}}
+      Audio_.pickup();addParticle(ln.x,ln.y,"#8fa4c8",14,120);showToast(`"${STORY_FRAGMENTS[ln.id]}"`,4200,true);}}
 
   // Mr. X
   if(game.hunter){const h=game.hunter;
@@ -1191,7 +1193,7 @@ function drawEndingFrame(t){
     for(const g of endingGhosts){ctx.globalAlpha=0.3;ctx.fillStyle="#0d0f16";
       ctx.beginPath();ctx.ellipse(g.fx*W,g.fy*H,g.r*0.75,g.r,0,0,7);ctx.fill();}ctx.globalAlpha=1;
     const a=clamp((t-END_P3)/0.8,0,1)*clamp((END_P4-t)/0.6,0,1);
-    ctx.globalAlpha=a;ctx.fillStyle="#e7eefc";ctx.textAlign="center";ctx.font="700 clamp(20px,4vw,34px) system-ui,sans-serif";
+    ctx.globalAlpha=a;ctx.fillStyle="#e7eefc";ctx.textAlign="center";
     ctx.font=`700 ${Math.round(Math.min(W,H)*0.045)}px system-ui,sans-serif`;
     ctx.fillText("KENNUNG 3 — GEFUNDEN.",W/2,H/2);ctx.globalAlpha=1;
   }else if(t<END_P5){ // list reveal
@@ -1225,8 +1227,11 @@ function updateHud(){const p=game.player;if(!p)return;
 let comboTO;function showCombo(c){const el=document.getElementById("comboLbl");el.textContent=`${c}× COMBO`;
   el.classList.add("show");clearTimeout(comboTO);comboTO=setTimeout(()=>el.classList.remove("show"),700);}
 function hideCombo(){document.getElementById("comboLbl").classList.remove("show");}
-let toastTO;function showToast(t,d){const el=document.getElementById("toast");el.textContent=t;el.classList.add("show");
-  clearTimeout(toastTO);toastTO=setTimeout(()=>el.classList.remove("show"),d||1500);}
+let toastTO,toastPriorityUntil=0;function showToast(t,d,priority){
+  const now=performance.now();if(!priority&&now<toastPriorityUntil)return;
+  const el=document.getElementById("toast");el.textContent=t;el.classList.add("show");
+  clearTimeout(toastTO);toastTO=setTimeout(()=>el.classList.remove("show"),d||1500);
+  toastPriorityUntil=priority?now+(d||1500):0;}
 
 /* ================= Win / Lose ================= */
 function levelComplete(){
@@ -1412,6 +1417,7 @@ function openAdminPanel(){
       <button class="btn" id="ad-cos">Alle Cosmetics freischalten</button>
       <button class="btn" id="ad-god">God-Mode: <span id="ad-god-state">Aus</span></button>
       <button class="btn" id="ad-winlevel">Aktuelles Level sofort gewinnen</button>
+      <button class="btn" id="ad-ending">🎬 Ending-Sequenz ansehen (Test)</button>
       <div style="border-top:1px solid #1e2b47;margin:6px 0;padding-top:10px;">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Level direkt starten</div>
         <div id="ad-leveljump" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
@@ -1423,9 +1429,11 @@ function openAdminPanel(){
   document.getElementById("ad-worlds").onclick=()=>{[1,2,3].forEach(w=>save.progress[w]=worldById(w).levels.length);persist();refreshMenuStats();showToast("Alle Welten freigeschaltet");};
   document.getElementById("ad-cos").onclick=()=>{save.owned=Object.keys(COSMETICS);persist();refreshMenuStats();showToast("Alle Cosmetics freigeschaltet");};
   document.getElementById("ad-god").onclick=()=>{game.godMode=!game.godMode;document.getElementById("ad-god-state").textContent=game.godMode?"An":"Aus";};
-  document.getElementById("ad-winlevel").onclick=()=>{if(game.state==="playing"){game.kills=game.killsNeeded;
-    game.enemies.forEach(e=>e.dead=true);game.enemies=[];game.alive=0;game.bossKilled=true;levelComplete();}
+  document.getElementById("ad-winlevel").onclick=()=>{if(game.state==="playing"){
+    game.enemies.forEach(e=>e.dead=true);game.enemies=[];game.alive=0;game.bossKilled=true;
+    if(game.cfg.boss==="mrx")triggerEnding();else{game.kills=game.killsNeeded;levelComplete();}}
     else showToast("Kein aktives Level");};
+  document.getElementById("ad-ending").onclick=()=>{el.remove();triggerEnding();};
   document.getElementById("ad-reset").onclick=()=>{if(confirm("Wirklich den gesamten Fortschritt löschen?")){
     save=structuredClone(DEFAULT_SAVE);persist();refreshMenuStats();showToast("Save zurückgesetzt");}};
   document.getElementById("ad-close").onclick=()=>el.remove();
