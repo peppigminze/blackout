@@ -171,7 +171,7 @@
       <input type="file" id="importFile" accept="application/json" style="display:none">
     </div>
   </div>
-  <div class="credit">v1.5 · BLACKOUT</div>
+  <div class="credit">v1.6 · BLACKOUT</div>
 </div>
 
 <div class="screen" id="scr-how">
@@ -256,11 +256,29 @@
 </div>
 
 <div class="screen" id="scr-result"><div class="result" id="resultBox"></div></div>
+
+<div class="screen" id="scr-epilogue" style="background:#020204;">
+  <div class="wrap" style="max-width:520px;text-align:center;">
+    <div style="font-size:11px;letter-spacing:.2em;color:#5a6070;margin-bottom:14px;">ARCHIV-STATUS</div>
+    <h1 class="logo" style="font-size:clamp(28px,7vw,48px);">DAS ARCHIV</h1>
+    <div class="sub" style="margin:18px 0 26px;line-height:1.7;">
+      Kennung 3 gefunden. Aufzeichnung abgeschlossen.<br>Ein neues Kapitel bleibt offen.
+    </div>
+    <div class="stats" style="justify-content:center;margin-bottom:28px;">
+      <div class="s"><b id="ep-lore">0/0</b>Fragmente</div>
+      <div class="s"><b id="ep-cos">0/0</b>Cosmetics</div>
+    </div>
+    <div class="btnrow" style="justify-content:center;">
+      <button class="btn" id="btnEpilogueChar">Kennung 3 anlegen</button>
+      <button class="btn ghost" id="btnEpilogueMenu">Zurück zum Menü</button>
+    </div>
+  </div>
+</div>
 <div class="fadeblack" id="fade"></div>
 
 <script>
 "use strict";
-/* ================= BLACKOUT v1.5 ================= */
+/* ================= BLACKOUT v1.6 ================= */
 
 /* ---- Storage (localStorage + Fallback) ---- */
 const Store=(()=>{let mem={},ok=false;
@@ -269,9 +287,9 @@ const Store=(()=>{let mem={},ok=false;
     set(k,v){try{if(ok)localStorage.setItem(k,v);else mem[k]=v;}catch(e){mem[k]=v;}}};})();
 
 const SAVE_KEY="blackout_save_v1";
-const DEFAULT_SAVE={highscore:0,totalKills:0,progress:{1:0,2:0,3:0},
+const DEFAULT_SAVE={highscore:0,totalKills:0,progress:{1:0,2:0,3:0,4:0},
   owned:["skin_default","face_default","head_none","aura_cyan"],
-  equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan"},best:{},muted:false,loreFound:[]};
+  equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan"},best:{},muted:false,loreFound:[],storyComplete:false};
 let save=loadSave();
 function loadSave(){try{const raw=Store.get(SAVE_KEY);if(!raw)return structuredClone(DEFAULT_SAVE);
   const s=JSON.parse(raw);return Object.assign(structuredClone(DEFAULT_SAVE),s,
@@ -297,7 +315,8 @@ const SKINS={
   skin_gold:{name:"Gold",body:"#ffd35c",edge:"#b58a1e"},
   skin_obsidian:{name:"Obsidian",body:"#2a2f45",edge:"#0e1120"},
   skin_ember:{name:"Glut",body:"#ff7a2d",edge:"#b0431a"},
-  skin_void:{name:"Leere",body:"#6a4dff",edge:"#3a2a9e"}
+  skin_void:{name:"Leere",body:"#6a4dff",edge:"#3a2a9e"},
+  skin_kennung3:{name:"Kennung 3",body:"#0d0e12",edge:"#1c1f28"}
 };
 const AURAS={
   aura_cyan:{name:"Cyan",color:"#3fe0ff"},aura_amber:{name:"Bernstein",color:"#ffb454"},
@@ -333,7 +352,9 @@ const COSMETICS={
   skin_gold:{slot:"skin",world:3},skin_obsidian:{slot:"skin",world:3},skin_ember:{slot:"skin",world:3},skin_void:{slot:"skin",world:3},
   aura_red:{slot:"aura",world:3},aura_purple:{slot:"aura",world:3},aura_white:{slot:"aura",world:3},aura_prism:{slot:"aura",world:3},
   face_cyclops:{slot:"face",world:3},face_star:{slot:"face",world:3},face_dead:{slot:"face",world:3},face_sleepy:{slot:"face",world:3},
-  head_crown:{slot:"head",world:3},head_halo:{slot:"head",world:3},head_horns:{slot:"head",world:3},head_wizard:{slot:"head",world:3},head_tophat:{slot:"head",world:3}
+  head_crown:{slot:"head",world:3},head_halo:{slot:"head",world:3},head_horns:{slot:"head",world:3},head_wizard:{slot:"head",world:3},head_tophat:{slot:"head",world:3},
+  // Secret (Story-Ende)
+  skin_kennung3:{slot:"skin",world:99,secret:true}
 };
 function cosName(id){return SKINS[id]?SKINS[id].name:AURAS[id]?AURAS[id].name:FACE_NAME[id]||HEAD_NAME[id]||id;}
 function auraColor(id,t){const a=AURAS[id]||AURAS.aura_cyan;
@@ -480,6 +501,16 @@ const WORLDS=[
         miniboss:{type:"boss3",hpScale:0.4,atFrac:0.5}},
       {kills:34,spawn:0.78,maxAlive:13,pool:["brute","screecher","spitter","darter","husk"], curseOffers:[0,0.25,0.5,0.75]},
       {kills:16,spawn:0.95,maxAlive:10,pool:["brute","spitter","husk"], boss:"boss3", curseOffers:[0,0.5625,0.875]}
+    ]},
+  {id:4,name:"Das Archiv",short:"Seine Zone. Kaum noch etwas anderes lebt hier.",color:"#dfe6f5",floor:"#050508",accent:"#5a5f70",
+    levels:[
+      {kills:7, spawn:2.2,maxAlive:3,pool:["phantom"], curseOffers:[0],
+        miniboss:{type:"boss1",hpScale:0.5,atFrac:0.4}},
+      {kills:8, spawn:2.0,maxAlive:3,pool:["phantom","husk"], curseOffers:[0],
+        miniboss:{type:"boss2",hpScale:0.55,atFrac:0.4}},
+      {kills:8, spawn:1.8,maxAlive:4,pool:["phantom","husk","screecher"], curseOffers:[0],
+        miniboss:{type:"boss3",hpScale:0.6,atFrac:0.4}},
+      {kills:1, spawn:5.0,maxAlive:0,pool:["phantom","husk"], boss:"mrx", curseOffers:[0]}
     ]}
 ];
 function worldById(id){return WORLDS.find(w=>w.id===id);}
@@ -495,7 +526,8 @@ const ENEMIES={
   husk:     {hp:8, speed:52, dmg:14, r:16, pts:280, color:"#ff6a3d", explodes:true},
   boss1:    {hp:58, speed:56, dmg:20, r:34, pts:1800, color:"#4fd0ff", boss:true, shootCd:2.0, pattern:1},
   boss2:    {hp:110,speed:60, dmg:24, r:38, pts:2600, color:"#ff4fd8", boss:true, shootCd:1.8, pattern:2},
-  boss3:    {hp:160,speed:64, dmg:28, r:42, pts:3400, color:"#ffd35c", boss:true, shootCd:1.6, pattern:3}
+  boss3:    {hp:160,speed:64, dmg:28, r:42, pts:3400, color:"#ffd35c", boss:true, shootCd:1.6, pattern:3},
+  mrx:      {hp:150,speed:74, dmg:26, r:32, pts:6000, color:"#dfe6f5", boss:true, shootCd:2.3, pattern:4}
 };
 
 const LEVEL_MODS={
@@ -505,6 +537,7 @@ const LEVEL_MODS={
   double_boss: {label:"Doppel-Boss"}
 };
 function pickLevelMod(cfg){
+  if(cfg.boss==="mrx")return null;
   if(cfg.boss)return Math.random()<0.5?"double_boss":null;
   const pool=["blind_start","tight_arena","rush",null,null];
   return pool[Math.floor(Math.random()*pool.length)];
@@ -569,13 +602,17 @@ const STORY_FRAGMENTS={
   "2-4":"Kennung 3 war mein Name. Bevor. Bevor was?",
   "3-0":"Kennung 3. Kennung 3. Kennung 3. Ich schreib's, damit ich's nicht vergesse.",
   "3-2":"Es gab nie eine Rettungsmission. Wir wurden geschickt, um IHN zu finden.",
-  "3-4":"TAG 1: Signal verloren. Falls das hier jemand liest—"
+  "3-4":"TAG 1: Signal verloren. Falls das hier jemand liest—",
+  "4-0":"Archiv-Zugriff gewährt. Aufzeichnungen aller Pulsgänger-Kennungen, unvollständig.",
+  "4-1":"Kennung 1: verstummt, Tag 4. Kennung 2: verstummt, Tag 2. Ein Muster.",
+  "4-2":"Er war nicht immer so. Er hat aufgehört zu pingen, um uns zu retten. Wir haben es nie verstanden."
 };
 const LORE_TOTAL=Object.keys(STORY_FRAGMENTS).length;
 const DECOR_POOLS={
   1:{n:[0,1],types:["gear"]},
   2:{n:[2,4],types:["blood_drop","gear","scratch"]},
-  3:{n:[4,7],types:["blood_pool","blood_drop","gear","scratch","scratch"]}
+  3:{n:[4,7],types:["blood_pool","blood_drop","gear","scratch","scratch"]},
+  4:{n:[6,9],types:["blood_pool","blood_pool","blood_drop","gear","scratch"]}
 };
 const HUNTER_SPEED=42, HUNTER_R=17, HUNTER_DMG=25, HUNTER_AGITATE=1.7, HUNTER_AGITATE_DUR=2.6;
 
@@ -626,7 +663,7 @@ const AURA=160;                 // Aura-Sichtradius
 const PING_R=300, PING_SPD=640, PING_CD=2.2, PING_NOISE=300;
 const DASH_SPD=620, DASH_TIME=0.18, DASH_CD=1.6;
 const BLACKOUT_GAP_MIN=7, BLACKOUT_GAP_MAX=11, BLACKOUT_DUR_MIN=3, BLACKOUT_DUR_MAX=5, BLACKOUT_AURA=22;
-function currentAuraR(){const base=(game.world&&game.world.id===3&&game.blackoutActive)?BLACKOUT_AURA:AURA;return base*(game.curseAuraMult||1);}
+function currentAuraR(){const inBlackout=(game.world&&(game.world.id===3||game.world.id===4)&&game.blackoutActive);const base=inBlackout?BLACKOUT_AURA:AURA;return base*(game.curseAuraMult||1);}
 
 /* ================= Input ================= */
 const keys={};
@@ -664,7 +701,7 @@ const PING_KB_R=90, PING_KB_FORCE=160;
 function doPing(){if(game.state!=="playing"||game.pingCd>0||!game.player)return;
   if(game.blindTimer>0){showToast("Kein Ping verfügbar...",900);return;}
   game.pingCd=PING_CD;const p=game.player;
-  const pr=(game.world.id===3&&game.blackoutActive)?PING_R*0.5:PING_R;
+  const pr=((game.world.id===3||game.world.id===4)&&game.blackoutActive)?PING_R*0.5:PING_R;
   addPulse(p.x,p.y,pr,PING_SPD,22,auraColor(save.equipped.aura,game.t));
   emitNoise(p.x,p.y,PING_NOISE,true);Audio_.ensure();Audio_.ping();
   for(const e of game.enemies){const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy);
@@ -700,7 +737,7 @@ function startLevel(worldId,levelIdx){
   game.bossSpawned=false;game.bossKilled=false;game.gotCosmetics=[];
   game.blindTimer=game.levelMod==="blind_start"?10:0;
   game.blackoutActive=false;game.blackoutDur=0;
-  game.blackoutTimer=world.id===3?rand(BLACKOUT_GAP_MIN,BLACKOUT_GAP_MAX):0;
+  game.blackoutTimer=(world.id===3||world.id===4)?rand(BLACKOUT_GAP_MIN,BLACKOUT_GAP_MAX):0;
   game.curses=[];game.curseChoicePending=false;game.curseOfferedThresholds=new Set();
   game.curseScoreMult=1;game.curseAuraMult=1;game.curseSpawnMult=1;game.curseDropMult=1;game.curseBlackoutMult=1;
   game.minibossSpawned=false;game.loreNodes=[];game.decor=[];game.hunter=null;game.glimpses=[];
@@ -711,7 +748,7 @@ function startLevel(worldId,levelIdx){
   game.player={x:game.arenaW/2,y:game.arenaH/2,r:15,hp:100,maxhp:100,speed:188,dir:-Math.PI/2,fireCd:0,inv:0,eq,
     buff:null,buffTime:0,dashCd:0,dashing:0,dashDir:0,fireRateMult:1,dmgMult:1,dashCdMult:1,speedMult:1};
   game.obstacles=[];const nObs=3+Math.floor(Math.random()*3);
-  const moving=world.id===2;
+  const moving=world.id===2||world.id===4;
   for(let i=0;i<nObs;i++){let ox,oy,tr=0;
     do{ox=rand(ARENA_MARGIN+80,game.arenaW-ARENA_MARGIN-80);oy=rand(ARENA_MARGIN+80,game.arenaH-ARENA_MARGIN-80);tr++;}
     while(Math.hypot(ox-game.player.x,oy-game.player.y)<260&&tr<30);
@@ -730,7 +767,7 @@ function startLevel(worldId,levelIdx){
     do{lx=rand(ARENA_MARGIN+60,game.arenaW-ARENA_MARGIN-60);ly=rand(ARENA_MARGIN+60,game.arenaH-ARENA_MARGIN-60);tr++;}
     while(Math.hypot(lx-game.player.x,ly-game.player.y)<220&&tr<30);
     game.loreNodes.push({x:lx,y:ly,id:fragId,r:13,vis:0,pulseT:-99,t:0,bob:rand(0,7),found:false});}
-  if(world.id===3||(world.id===2&&levelIdx>=2)){let hx,hy;
+  if(world.id===3||(world.id===2&&levelIdx>=2)||(world.id===4&&levelIdx<3)){let hx,hy;
     const corner=Math.floor(Math.random()*4);
     hx=corner%2===0?ARENA_MARGIN+60:game.arenaW-ARENA_MARGIN-60;
     hy=corner<2?ARENA_MARGIN+60:game.arenaH-ARENA_MARGIN-60;
@@ -754,7 +791,7 @@ function spawnEnemy(type,hpScale){
     else{x=game.arenaW-ARENA_MARGIN-10;y=rand(ARENA_MARGIN,game.arenaH-ARENA_MARGIN);}tr++;}
   while(Math.hypot(x-game.player.x,y-game.player.y)<340&&tr<20);
   // per-world difficulty scaling (nur normale Gegner, Bosse sind schon welt-spezifisch)
-  const wm=game.world.id;const hpMult=base.boss?1:(wm===2?1.15:wm===3?1.3:1);const spMult=base.boss?1:(wm===2?1.08:wm===3?1.16:1);
+  const wm=game.world.id;const hpMult=base.boss?1:(wm===2?1.15:wm===3?1.3:wm===4?1.4:1);const spMult=base.boss?1:(wm===2?1.08:wm===3?1.16:wm===4?1.2:1);
   const hp=Math.max(1,Math.round(base.hp*hpMult*(hpScale||1)));
   const e={type,x,y,hp,maxhp:hp,r:base.r,speed:base.speed*spMult,dmg:base.dmg,pts:base.pts,color:base.color,
     vis:0,pulseT:-99,alert:false,tx:game.player.x,ty:game.player.y,wander:rand(0,7),
@@ -773,6 +810,8 @@ function fireBossPattern(e){
     life:4.5,dmg:Math.round(e.dmg*0.7),r:8,color:e.color});
   if(e.pattern===1){shoot(ang);shoot(ang+0.2);shoot(ang-0.2);}
   else if(e.pattern===2){for(let i=-2;i<=2;i++)shoot(ang+i*0.24);}
+  else if(e.pattern===4){shoot(ang,210);shoot(ang+0.18,210);shoot(ang-0.18,210);
+    if(Math.random()<0.4)for(let i=0;i<10;i++)shoot(i/10*Math.PI*2,130);}
   else{for(let i=0;i<12;i++)shoot(i/12*Math.PI*2,150);shoot(ang);shoot(ang+0.15);shoot(ang-0.15);}
   Audio_.enemyShot();
 }
@@ -788,7 +827,7 @@ function update(dt){
   if(game.pingCd>0)game.pingCd-=dt;
   if(game.blindTimer>0)game.blindTimer-=dt;
   if(game.shake>0)game.shake=Math.max(0,game.shake-dt*30);
-  if(game.world&&game.world.id===3){
+  if(game.world&&(game.world.id===3||game.world.id===4)){
     if(game.blackoutActive){game.blackoutDur-=dt;
       if(game.blackoutDur<=0){game.blackoutActive=false;game.blackoutTimer=rand(BLACKOUT_GAP_MIN,BLACKOUT_GAP_MAX);}}
     else{game.blackoutTimer-=dt;
@@ -830,7 +869,7 @@ function update(dt){
 
   // pulses
   for(const pl of game.pulses){const pr=pl.r;pl.r+=pl.speed*dt;if(pl.r>pl.maxR)pl.life=0;
-    const muted=pl.owner==="enemy"&&game.world.id===3&&game.blackoutActive;
+    const muted=pl.owner==="enemy"&&(game.world.id===3||game.world.id===4)&&game.blackoutActive;
     const sweep=o=>{if(muted)return;const d=Math.hypot(o.x-pl.x,o.y-pl.y);
       if(d>pr-pl.thick&&d<pl.r+pl.thick)o.pulseT=pl.owner==="enemy"?game.t-0.45:game.t;};
     game.enemies.forEach(sweep);game.pickups.forEach(sweep);game.loreNodes.forEach(sweep);if(game.hunter)sweep(game.hunter);}
@@ -879,11 +918,12 @@ function update(dt){
       game.enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*bs,vy:Math.sin(a)*bs,life:3.8,dmg:8,r:7,color:"#ffca4d"});
       e.pulseT=game.t;Audio_.enemyShot();}}
     if(e.boss){
-      e.shootCd-=dt;if(e.shootCd<=0&&dToP<680){e.shootCd=base.shootCd;fireBossPattern(e);}
+      const enraged=e.type==="mrx"&&e.hp<e.maxhp*0.4;
+      e.shootCd-=dt;if(e.shootCd<=0&&dToP<680){e.shootCd=base.shootCd*(enraged?0.65:1);fireBossPattern(e);}
       e.minionCd-=dt;if(e.minionCd<=0){e.minionCd=rand(5,7);
         const pool=cfg.pool;spawnLater.push(pool[Math.floor(Math.random()*pool.length)]);spawnLater.push(pool[Math.floor(Math.random()*pool.length)]);}
-      e.lungeCd-=dt;if(e.lungeCd<=0&&dToP<440){e.lungeCd=rand(2.2,3.4);e.lunge=0.4;}
-      if(e.lunge>0){spd*=2.2;e.lunge-=dt;}}
+      e.lungeCd-=dt;if(e.lungeCd<=0&&dToP<440){e.lungeCd=rand(enraged?1.4:2.2,enraged?2.2:3.4);e.lunge=0.4;}
+      if(e.lunge>0){spd*=enraged?2.6:2.2;e.lunge-=dt;}}
     e.x+=Math.cos(ang)*spd*dt;e.y+=Math.sin(ang)*spd*dt;
     e.x=clamp(e.x,ARENA_MARGIN,game.arenaW-ARENA_MARGIN);e.y=clamp(e.y,ARENA_MARGIN,game.arenaH-ARENA_MARGIN);
     for(const o of game.obstacles){const dx=e.x-o.x,dy=e.y-o.y,d=Math.hypot(dx,dy),min=o.r+e.r;
@@ -940,7 +980,7 @@ function update(dt){
   // Mr. X
   if(game.hunter){const h=game.hunter;
     const agitated=game.t<h.agitatedUntil;
-    const blackoutBoost=(game.world.id===3&&game.blackoutActive)?1.5:1;
+    const blackoutBoost=((game.world.id===3||game.world.id===4)&&game.blackoutActive)?1.5:1;
     const spd=HUNTER_SPEED*(agitated?HUNTER_AGITATE:1)*blackoutBoost;
     const ang=Math.atan2(p.y-h.y,p.x-h.x);
     h.x=clamp(h.x+Math.cos(ang)*spd*dt,ARENA_MARGIN,game.arenaW-ARENA_MARGIN);
@@ -968,7 +1008,7 @@ function update(dt){
   if(game.comboTimer>0){game.comboTimer-=dt;if(game.comboTimer<=0){game.combo=0;hideCombo();}}
 
   // win
-  if(cfg.boss){if(game.bossKilled)levelComplete();}
+  if(cfg.boss){if(game.bossKilled){if(cfg.boss==="mrx")triggerEnding();else levelComplete();}}
   else if(game.kills>=game.killsNeeded&&game.alive===0)levelComplete();
 }
 
@@ -984,7 +1024,7 @@ function killEnemy(e){
   game.kills++;game.combo++;game.maxCombo=Math.max(game.maxCombo,game.combo);game.comboTimer=2.2;checkCurseOffer();
   const mult=1+Math.min(game.combo-1,9)*0.15;game.score+=Math.round(e.pts*mult*(game.curseScoreMult||1));
   if(game.combo>=3)showCombo(game.combo);save.totalKills++;
-  if(e.boss){game.bossKilled=true;game.shake=18;tryDropCosmetic(e.x,e.y);}   // Boss: garantierter Drop-Versuch
+  if(e.boss){game.bossKilled=true;game.shake=18;if(e.type!=="mrx")tryDropCosmetic(e.x,e.y);}   // Boss: garantierter Drop-Versuch
   else if(Math.random()<0.09*(game.curseDropMult||1))tryDropCosmetic(e.x,e.y);                        // erhöhte Drop-Chance
   else if(Math.random()<0.07){const pk=Object.keys(POWERS);spawnPickup(e.x,e.y,"power",pk[Math.floor(Math.random()*pk.length)]);}
   else if(Math.random()<0.12)spawnPickup(e.x,e.y,"health");
@@ -1023,7 +1063,7 @@ function render(){
     ctx.beginPath();ctx.arc(pl.x,pl.y,pl.r,0,7);ctx.stroke();}
 
   for(const o of game.obstacles){const d=Math.hypot(o.x-p.x,o.y-p.y);let vis=clamp(1-d/(220*(auraR/AURA)),0,1);
-    for(const pl of game.pulses){if(pl.owner==="enemy"&&game.world.id===3&&game.blackoutActive)continue;
+    for(const pl of game.pulses){if(pl.owner==="enemy"&&(game.world.id===3||game.world.id===4)&&game.blackoutActive)continue;
       if(Math.abs(Math.hypot(o.x-pl.x,o.y-pl.y)-pl.r)<pl.thick+o.r)vis=Math.max(vis,pl.owner==="enemy"?0.45:0.9);}
     if(vis<0.04)continue;ctx.globalAlpha=vis;ctx.fillStyle="#111a2e";ctx.strokeStyle=hexA(game.world.color,0.5);ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,7);ctx.fill();ctx.stroke();ctx.globalAlpha=1;}
@@ -1112,7 +1152,69 @@ function render(){
   const db=document.getElementById("dashBtn");if(p.dashCd>0)db.classList.add("cooling");else db.classList.remove("cooling");
 }
 
-/* ================= HUD ================= */
+/* ================= Ending Sequence ================= */
+const END_P1=2.0, END_P2=4.0, END_P3=9.5, END_P4=13.5, END_P5=20.0, END_DUR=23.0;
+let endingGhosts=[],endingSkip=false;
+function triggerEnding(){
+  game.state="ending";endingSkip=false;
+  document.getElementById("hud").classList.remove("active");showScreen(null);
+  if(save.progress[4]<4)save.progress[4]=4;
+  save.storyComplete=true;
+  if(!save.owned.includes("skin_kennung3"))save.owned.push("skin_kennung3");
+  persist();Audio_.win();
+  endingGhosts=[];for(let i=0;i<7;i++)endingGhosts.push({fx:rand(0.12,0.88),fy:rand(0.2,0.8),r:rand(14,22)});
+  const skipEl=document.createElement("div");skipEl.id="endSkip";skipEl.textContent="Überspringen ›";
+  skipEl.style.cssText="position:fixed;bottom:22px;right:22px;z-index:95;color:#5a6070;font-size:13px;padding:10px 14px;cursor:pointer;";
+  skipEl.onclick=()=>{endingSkip=true;};document.body.appendChild(skipEl);
+  const startT=performance.now();
+  function frame(now){const t=endingSkip?END_DUR:(now-startT)/1000;
+    drawEndingFrame(t);
+    if(t<END_DUR)requestAnimationFrame(frame);
+    else{skipEl.remove();showEpilogue();}}
+  requestAnimationFrame(frame);
+}
+function drawEndingFrame(t){
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);
+  if(t<END_P1){ // dissolve of the world
+    const a=1-clamp(t/END_P1,0,1);ctx.globalAlpha=a*0.5;ctx.fillStyle=game.world?game.world.color:"#dfe6f5";
+    ctx.beginPath();ctx.arc(W/2,H*0.42,120*(1+t*0.6),0,7);ctx.fill();ctx.globalAlpha=1;
+  }else if(t<END_P2){ // pure black pause
+    // nothing, silence
+  }else if(t<END_P3){ // silhouettes revealed by an expanding ring
+    const pr=clamp((t-END_P2)/(END_P3-END_P2),0,1),ringR=pr*Math.max(W,H)*0.8;
+    for(const g of endingGhosts){const gx=g.fx*W,gy=g.fy*H,d=Math.hypot(gx-W/2,gy-H/2);
+      if(d>ringR)continue;const a=clamp(1-(ringR-d)/220,0.18,0.42);
+      ctx.globalAlpha=a;ctx.fillStyle="#0d0f16";ctx.beginPath();ctx.ellipse(gx,gy,g.r*0.75,g.r,0,0,7);ctx.fill();}
+    ctx.globalAlpha=clamp(pr*1.4,0,0.35);ctx.strokeStyle="#8fa4c8";ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(W/2,H/2,ringR,0,7);ctx.stroke();ctx.globalAlpha=1;
+  }else if(t<END_P4){ // "KENNUNG 3 — GEFUNDEN."
+    for(const g of endingGhosts){ctx.globalAlpha=0.3;ctx.fillStyle="#0d0f16";
+      ctx.beginPath();ctx.ellipse(g.fx*W,g.fy*H,g.r*0.75,g.r,0,0,7);ctx.fill();}ctx.globalAlpha=1;
+    const a=clamp((t-END_P3)/0.8,0,1)*clamp((END_P4-t)/0.6,0,1);
+    ctx.globalAlpha=a;ctx.fillStyle="#e7eefc";ctx.textAlign="center";ctx.font="700 clamp(20px,4vw,34px) system-ui,sans-serif";
+    ctx.font=`700 ${Math.round(Math.min(W,H)*0.045)}px system-ui,sans-serif`;
+    ctx.fillText("KENNUNG 3 — GEFUNDEN.",W/2,H/2);ctx.globalAlpha=1;
+  }else if(t<END_P5){ // list reveal
+    const lines=["Kennung 1 — verstummt.","Kennung 2 — verstummt.","Kennung 3 — gefunden.","Kennung 4 — ?"];
+    const lh=Math.round(Math.min(W,H)*0.06);ctx.textAlign="center";ctx.font=`600 ${Math.round(lh*0.62)}px system-ui,sans-serif`;
+    lines.forEach((ln,i)=>{const lineStart=END_P4+i*1.3;const a=clamp((t-lineStart)/0.7,0,1);
+      if(a<=0)return;ctx.globalAlpha=a;ctx.fillStyle=i===3?"#ff5470":"#c9d6ee";
+      ctx.fillText(ln,W/2,H/2-lh+i*lh);});ctx.globalAlpha=1;
+  }else{ // fade to logo
+    const a=clamp((t-END_P5)/(END_DUR-END_P5),0,1);
+    ctx.globalAlpha=a;ctx.fillStyle="#e7eefc";ctx.textAlign="center";
+    ctx.font=`800 ${Math.round(Math.min(W,H)*0.08)}px system-ui,sans-serif`;ctx.fillText("BLACKOUT",W/2,H/2);ctx.globalAlpha=1;
+  }
+}
+function showEpilogue(){
+  document.getElementById("ep-lore").textContent=`${save.loreFound.length}/${LORE_TOTAL}`;
+  document.getElementById("ep-cos").textContent=`${save.owned.length}/${Object.keys(COSMETICS).length}`;
+  showScreen("epilogue");
+}
+document.getElementById("btnEpilogueMenu").onclick=()=>{refreshMenuStats();showScreen("menu");};
+document.getElementById("btnEpilogueChar").onclick=()=>{save.equipped.skin="skin_kennung3";persist();buildCharacter();showScreen("char");};
+
+
 function updateHud(){const p=game.player;if(!p)return;
   document.getElementById("hpFill").style.width=(p.hp/p.maxhp*100)+"%";
   document.getElementById("hudScore").textContent=game.score.toLocaleString("de-CH");
@@ -1192,7 +1294,7 @@ const fadeEl=document.getElementById("fade");
 function startLevelFade(w,l){fadeEl.classList.add("on");setTimeout(()=>{startLevel(w,l);fadeEl.classList.remove("on");},300);}
 
 /* ================= Screens ================= */
-const screens={menu:"scr-menu",how:"scr-how",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result"};
+const screens={menu:"scr-menu",how:"scr-how",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
 function showScreen(name){Object.values(screens).forEach(id=>document.getElementById(id).classList.remove("active"));
   document.getElementById("stick").innerHTML="";if(name)document.getElementById(screens[name]).classList.add("active");}
 
@@ -1246,6 +1348,7 @@ function buildCharacter(){
   groups.forEach(g=>{const sec=document.createElement("div");sec.className="slot";sec.innerHTML=`<h3>${g.title}</h3>`;
     const grid=document.createElement("div");grid.className="grid";
     g.ids.forEach(id=>{const owned=save.owned.includes(id);const meta=COSMETICS[id]||{world:0};
+      if(meta.secret&&!owned)return;
       const cell=document.createElement("div");cell.className="cos"+(owned?"":" locked")+(save.equipped[g.slot]===id?" equipped":"");
       const cvEl=document.createElement("canvas");cvEl.width=140;cvEl.height=140;cell.appendChild(cvEl);
       if(meta.world>0){const wt=document.createElement("div");wt.className="wtag";wt.textContent="W"+meta.world;cell.appendChild(wt);}
