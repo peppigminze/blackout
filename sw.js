@@ -1,6 +1,6 @@
 // BLACKOUT — Service Worker
 // Cache-first für alle App-Assets, damit das Spiel auch offline / installiert läuft.
-const CACHE_NAME = "blackout-cache-v1.6-p2";
+const CACHE_NAME = "blackout-cache-v1.6-p3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,7 +8,11 @@ const ASSETS = [
   "./icon-192.png",
   "./icon-512.png",
   "./icon-maskable-512.png",
-  "./icon-180.png"
+  "./icon-180.png",
+  "./css/style.css",
+  "./js/data.js",
+  "./js/audio.js",
+  "./js/game.js"
 ];
 
 self.addEventListener("install", (event) => {
