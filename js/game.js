@@ -75,7 +75,14 @@ function doPing(){if(game.state!=="playing"||game.pingCd>0||!game.player)return;
   }
   if(game.glimpseMode&&Math.random()<0.25){const a=rand(0,7),d=rand(pr*0.75,pr*0.98);
     const gx=p.x+Math.cos(a)*d,gy=p.y+Math.sin(a)*d;
-    game.glimpses.push({x:gx,y:gy,life:1.1,max:1.1});Audio_.glimpse(panFor(gx));}}
+    game.glimpses.push({x:gx,y:gy,life:1.1,max:1.1});Audio_.glimpse(panFor(gx));}
+  if(!save.tutorialDone&&game.world.id===1&&game.levelIdx===0&&!game._tutPingShown){
+    game._tutPingShown=true;
+    showTutorialBeat("SOUND-PULSE",
+      "Kurzer Impuls raus — was er trifft, siehst du für einen Wimpernschlag. Bewegen ist leise. Pingen und Schießen sind laut und locken an.",
+      ()=>{save.tutorialDone=true;persist();});
+  }
+}
 
 function doDash(){if(game.state!=="playing"||!game.player)return;const p=game.player;
   if(p.dashCd>0||p.dashing>0)return;
@@ -877,7 +884,13 @@ function buildCharacter(){
 }
 
 /* ================= Buttons ================= */
-document.getElementById("btnPlay").onclick=()=>{Audio_.ensure();buildWorlds();showScreen("worlds");};
+document.getElementById("btnPlay").onclick=()=>{Audio_.ensure();
+  if(!save.tutorialDone){
+    showTutorialBeat("EINGEHENDE ÜBERTRAGUNG",
+      "Kontakt zum Undergrid abgebrochen. Du wirst als Pulsgänger runtergeschickt — offiziell eine Rettungsmission. Dein Gerät sendet kurze Schallimpulse, die alles in der Nähe für einen Moment sichtbar machen. Mehr hast du hier unten nicht.",
+      ()=>{buildWorlds();showScreen("worlds");});
+  }else{buildWorlds();showScreen("worlds");}
+};
 document.getElementById("btnChar").onclick=()=>{buildCharacter();showScreen("char");};
 document.getElementById("btnHow").onclick=()=>showScreen("how");
 document.getElementById("btnCharTop").onclick=()=>{buildCharacter();showScreen("char");};

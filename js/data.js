@@ -10,7 +10,7 @@ const Store=(()=>{let mem={},ok=false;
 const SAVE_KEY="blackout_save_v1";
 const DEFAULT_SAVE={highscore:0,totalKills:0,progress:{1:0,2:0,3:0,4:0},
   owned:["skin_default","face_default","head_none","aura_cyan"],
-  equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan"},best:{},muted:false,loreFound:[],storyComplete:false};
+  equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan"},best:{},muted:false,loreFound:[],storyComplete:false,tutorialDone:false};
 let save=loadSave();
 function loadSave(){try{const raw=Store.get(SAVE_KEY);if(!raw)return structuredClone(DEFAULT_SAVE);
   const s=JSON.parse(raw);return Object.assign(structuredClone(DEFAULT_SAVE),s,
@@ -316,35 +316,45 @@ function checkCurseOffer(){if(game.curseChoicePending)return;
   for(const k of game.curseOfferKills){if(game.curseOfferedThresholds.has(k))continue;
     if(game.kills>=k){game.curseOfferedThresholds.add(k);const id=pickCurse();if(id)offerCurse(id);return;}}}
 
-/* ---- Story-Fragmente: Lese-Overlay mit Typewriter-Effekt ---- */
-function showLoreReading(id){
-  const text=STORY_FRAGMENTS[id];if(!text)return;
+/* ---- Story-Beats: generisches Lese-Overlay mit Typewriter-Effekt (Fragmente + Tutorial) ---- */
+function showStoryBeat(title,text,opts){
+  opts=opts||{};
   game.readingLore=true;
-  const stale=document.getElementById("loreReading");if(stale)stale.remove();
-  const el=document.createElement("div");el.id="loreReading";
+  const stale=document.getElementById("storyBeat");if(stale)stale.remove();
+  const el=document.createElement("div");el.id="storyBeat";
   el.style.cssText="position:fixed;inset:0;z-index:92;background:#05070df0;display:flex;align-items:center;justify-content:center;padding:24px;";
   el.innerHTML=`<div style="max-width:480px;width:100%;text-align:center;">
-    <div style="font-size:11px;letter-spacing:.24em;color:#5a7a99;margin-bottom:14px;">SIGNAL EMPFANGEN</div>
-    <p id="loreReadingText" style="color:#c9e8ff;font-size:17px;line-height:1.7;min-height:4.5em;font-style:italic;"></p>
-    <button class="btn ghost small" id="loreReadingSkip" style="margin-top:18px;opacity:.7;">Weiter</button>
+    <div style="font-size:11px;letter-spacing:.24em;color:#5a7a99;margin-bottom:14px;">${title}</div>
+    <p id="storyBeatText" style="color:#c9e8ff;font-size:17px;line-height:1.7;min-height:4.5em;font-style:italic;"></p>
+    <button class="btn ghost small" id="storyBeatSkip" style="margin-top:18px;opacity:.7;">Weiter</button>
   </div>`;
   document.body.appendChild(el);
-  const txtEl=document.getElementById("loreReadingText");
+  const txtEl=document.getElementById("storyBeatText");
   let i=0,done=false,typeTO=null,closeTO=null;
   function typeStep(){
-    if(i>=text.length){done=true;closeTO=setTimeout(closeReading,1800);return;}
+    if(i>=text.length){done=true;closeTO=setTimeout(closeBeat,opts.holdMs!==undefined?opts.holdMs:1800);return;}
     txtEl.textContent+=text[i];i++;
     typeTO=setTimeout(typeStep,22);
   }
-  function closeReading(){
+  function closeBeat(){
     clearTimeout(typeTO);clearTimeout(closeTO);
     el.remove();game.readingLore=false;lastT=performance.now();
+    if(opts.onClose)opts.onClose();
   }
   typeStep();
-  document.getElementById("loreReadingSkip").onclick=()=>{
-    if(!done){clearTimeout(typeTO);txtEl.textContent=text;done=true;closeTO=setTimeout(closeReading,900);}
-    else closeReading();
+  document.getElementById("storyBeatSkip").onclick=()=>{
+    if(!done){clearTimeout(typeTO);txtEl.textContent=text;done=true;closeTO=setTimeout(closeBeat,900);}
+    else closeBeat();
   };
+}
+function showLoreReading(id){
+  const text=STORY_FRAGMENTS[id];if(!text)return;
+  showStoryBeat("SIGNAL EMPFANGEN",text);
+}
+// Tutorial-Momente nutzen dieselbe Lese-Pause wie Story-Fragmente, damit sich das
+// Tutorial wie ein Teil der Welt anfühlt statt wie ein separates Hilfe-System.
+function showTutorialBeat(title,text,onClose){
+  showStoryBeat(title,text,{onClose});
 }
 
 /* ---- Archiv/Codex: Nachlese aller gefundenen Fragmente ---- */
