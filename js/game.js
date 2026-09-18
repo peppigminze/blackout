@@ -762,12 +762,14 @@ function levelComplete(){
   const wid=game.world.id;if(save.progress[wid]<game.levelIdx+1)save.progress[wid]=game.levelIdx+1;
   const key=`${wid}-${game.levelIdx}`,newBest=game.score>(save.best[key]||0);if(newBest)save.best[key]=game.score;
   const newHigh=game.score>save.highscore;if(newHigh)save.highscore=game.score;persist();
+  if(newBest||newHigh)LB.trySubmit();
   showResult(true,{bonus,reward,newBest,newHigh});
 }
 function gameOver(){
   if(game.state!=="playing")return;game.state="dead";
   document.getElementById("hud").classList.remove("active");Audio_.lose();Audio_.setTension(0);
   const newHigh=game.score>save.highscore;if(newHigh)save.highscore=game.score;persist();
+  if(newHigh)LB.trySubmit();
   showResult(false,{newHigh});
 }
 function showResult(win,info){
@@ -818,7 +820,7 @@ const fadeEl=document.getElementById("fade");
 function startLevelFade(w,l){fadeEl.classList.add("on");setTimeout(()=>{startLevel(w,l);fadeEl.classList.remove("on");},300);}
 
 /* ================= Screens ================= */
-const screens={menu:"scr-menu",codex:"scr-codex",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
+const screens={menu:"scr-menu",codex:"scr-codex",leaderboard:"scr-leaderboard",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
 function showScreen(name){Object.values(screens).forEach(id=>document.getElementById(id).classList.remove("active"));
   document.getElementById("stick").innerHTML="";if(name)document.getElementById(screens[name]).classList.add("active");}
 

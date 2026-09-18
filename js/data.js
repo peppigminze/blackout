@@ -10,7 +10,8 @@ const Store=(()=>{let mem={},ok=false;
 const SAVE_KEY="blackout_save_v1";
 const DEFAULT_SAVE={highscore:0,totalKills:0,progress:{1:0,2:0,3:0,4:0},
   owned:["skin_default","face_default","head_none","aura_cyan"],
-  equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan"},best:{},muted:false,loreFound:[],storyComplete:false,tutorialDone:false};
+  equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan"},best:{},muted:false,loreFound:[],storyComplete:false,tutorialDone:false,
+  playerId:null,playerName:null};
 let save=loadSave();
 function loadSave(){try{const raw=Store.get(SAVE_KEY);if(!raw)return structuredClone(DEFAULT_SAVE);
   const s=JSON.parse(raw);return Object.assign(structuredClone(DEFAULT_SAVE),s,

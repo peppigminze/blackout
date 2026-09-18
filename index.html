@@ -25,6 +25,7 @@
       <button class="btn primary" id="btnPlay">SPIELEN</button>
       <button class="btn" id="btnChar">CHARAKTER</button>
       <button class="btn ghost" id="btnCodex">🗄 Archiv</button>
+      <button class="btn ghost" id="btnLeaderboard">🌐 Bestenliste</button>
     </div>
     <div class="stats">
       <div class="s"><b id="m-hs">0</b>Highscore</div>
@@ -52,6 +53,24 @@
     <h2 style="text-align:center">Archiv</h2>
     <div class="sub" style="text-align:center">Gefundene Übertragungen aus dem Undergrid.</div>
     <div id="codexList" style="display:flex;flex-direction:column;gap:18px;margin-top:10px"></div>
+  </div>
+</div>
+
+<div class="screen scrollable" id="scr-leaderboard">
+  <div class="topbar"><button class="btn ghost" data-back="menu">← Zurück</button><div></div></div>
+  <div class="wrap" style="max-width:520px">
+    <h2 style="text-align:center">Bestenliste</h2>
+    <div class="sub" style="text-align:center">Gesamt oder pro Welt — nur dein bestes Ergebnis zählt.</div>
+    <div id="lbNameGate" style="display:none;margin-top:18px;">
+      <div class="sub">Trag einen Namen ein, damit du in der Bestenliste erscheinst.</div>
+      <input id="lbNameInput" maxlength="18" placeholder="Dein Name" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0a1120;color:var(--text);font-size:15px;margin:12px 0;box-sizing:border-box;">
+      <button class="btn primary" id="lbNameConfirm">Bestätigen</button>
+    </div>
+    <div id="lbContent" style="display:none;">
+      <div id="lbTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 10px;"></div>
+      <div id="lbList" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <div id="lbMineRow" style="margin-top:14px;"></div>
+    </div>
   </div>
 </div>
 
@@ -141,7 +160,10 @@
 </div>
 <div class="fadeblack" id="fade"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="./js/data.js"></script>
+<script src="./js/leaderboard.js"></script>
 <script src="./js/audio.js"></script>
 <script src="./js/game.js"></script>
 </body>
