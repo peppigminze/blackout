@@ -571,6 +571,42 @@ function render(){
 /* ================= Ending Sequence ================= */
 const END_P1=2.0, END_P2=4.0, END_P3=9.5, END_P4=13.5, END_P5=20.0, END_DUR=23.0;
 let endingGhosts=[],endingSkip=false,endingStingPlayed=false;
+const GLITCH_CHARS="#$%&01_/\\|<>*+=※";
+
+/* ---- Ending-Grafikhelfer: TV-Static, Scanlines, Vignette, Glitch-Text ---- */
+function endingNoise(alpha,count){
+  if(alpha<=0)return;
+  ctx.globalAlpha=alpha;ctx.fillStyle="#dfe6f5";
+  for(let i=0;i<count;i++)ctx.fillRect(Math.random()*W,Math.random()*H,1,1);
+  ctx.globalAlpha=1;
+}
+function endingScanlines(alpha){
+  if(alpha<=0)return;
+  ctx.globalAlpha=alpha;ctx.fillStyle="#000";
+  for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);
+  ctx.globalAlpha=1;
+}
+function endingVignette(strength){
+  if(strength<=0)return;
+  const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.25,W/2,H/2,Math.max(W,H)*0.75);
+  g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,`rgba(0,0,0,${strength})`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+// Text mit chromatischer Aberration + Zeichen-Scramble, glitchAmt 0=klar, 1=maximal verzerrt
+function glitchText(text,cx,cy,fontPx,weight,color,glitchAmt,baseAlpha){
+  glitchAmt=clamp(glitchAmt,0,1);
+  let display=text;
+  if(glitchAmt>0.02)display=text.split("").map(ch=>ch===" "?ch:
+    (Math.random()<glitchAmt*0.5?GLITCH_CHARS[Math.floor(Math.random()*GLITCH_CHARS.length)]:ch)).join("");
+  ctx.font=`${weight} ${fontPx}px system-ui,sans-serif`;ctx.textAlign="center";
+  const off=glitchAmt*7;
+  if(off>0.4){
+    ctx.globalAlpha=baseAlpha*0.5;
+    ctx.fillStyle="#ff2d6b";ctx.fillText(display,cx-off,cy);
+    ctx.fillStyle="#3fe0ff";ctx.fillText(display,cx+off,cy);
+  }
+  ctx.globalAlpha=baseAlpha;ctx.fillStyle=color;ctx.fillText(display,cx,cy);ctx.globalAlpha=1;
+}
 function triggerEnding(){
   game.state="ending";endingSkip=false;endingStingPlayed=false;
   document.getElementById("hud").classList.remove("active");showScreen(null);
@@ -578,7 +614,8 @@ function triggerEnding(){
   save.storyComplete=true;
   if(!save.owned.includes("skin_kennung3"))save.owned.push("skin_kennung3");
   persist();Audio_.reveal();Audio_.setTension(0.55);
-  endingGhosts=[];for(let i=0;i<7;i++)endingGhosts.push({fx:rand(0.12,0.88),fy:rand(0.2,0.8),r:rand(14,22)});
+  endingGhosts=[];for(let i=0;i<7;i++)endingGhosts.push({fx:rand(0.12,0.88),fy:rand(0.2,0.8),r:rand(14,22),
+    eyePhase:rand(0,7),eyeSpeed:rand(0.6,1.4)});
   const skipEl=document.createElement("div");skipEl.id="endSkip";skipEl.textContent="Überspringen ›";
   skipEl.style.cssText="position:fixed;bottom:22px;right:22px;z-index:95;color:#5a6070;font-size:13px;padding:10px 14px;cursor:pointer;";
   skipEl.onclick=()=>{endingSkip=true;};document.body.appendChild(skipEl);
@@ -591,41 +628,88 @@ function triggerEnding(){
 }
 function drawEndingFrame(t){
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);
-  if(t<END_P1){ // dissolve of the world
-    const a=1-clamp(t/END_P1,0,1);ctx.globalAlpha=a*0.5;ctx.fillStyle=game.world?game.world.color:"#dfe6f5";
+
+  // Kamera-Shake exakt beim Erscheinen von "Kennung 4 — ?" (deterministisch aus t, kein State nötig)
+  const stingT=END_P4+3*1.3;
+  const shakeAmt=clamp(1-Math.abs(t-stingT)/0.4,0,1)*(t>=stingT-0.05?1:0)*10;
+  let sx=0,sy=0;
+  if(shakeAmt>0.1){sx=rand(-1,1)*shakeAmt;sy=rand(-1,1)*shakeAmt;ctx.save();ctx.translate(sx,sy);}
+
+  if(t<END_P1){ // Dissolve: die Welt löst sich auf, sein letzter Ping verklingt
+    const a=1-clamp(t/END_P1,0,1);
+    ctx.globalAlpha=a*0.5;ctx.fillStyle=game.world?game.world.color:"#dfe6f5";
     ctx.beginPath();ctx.arc(W/2,H*0.42,120*(1+t*0.6),0,7);ctx.fill();ctx.globalAlpha=1;
-  }else if(t<END_P2){ // pure black pause
-    // nothing, silence
-  }else if(t<END_P3){ // silhouettes revealed by an expanding ring
-    const pr=clamp((t-END_P2)/(END_P3-END_P2),0,1),ringR=pr*Math.max(W,H)*0.8;
-    for(const g of endingGhosts){const gx=g.fx*W,gy=g.fy*H,d=Math.hypot(gx-W/2,gy-H/2);
-      if(d>ringR)continue;const a=clamp(1-(ringR-d)/220,0.18,0.42);
-      ctx.globalAlpha=a;ctx.fillStyle="#0d0f16";ctx.beginPath();ctx.ellipse(gx,gy,g.r*0.75,g.r,0,0,7);ctx.fill();}
-    ctx.globalAlpha=clamp(pr*1.4,0,0.35);ctx.strokeStyle="#8fa4c8";ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(W/2,H/2,ringR,0,7);ctx.stroke();ctx.globalAlpha=1;
-  }else if(t<END_P4){ // "KENNUNG 3 — GEFUNDEN."
+    // 3 auslaufende Ping-Echoringe, wie sein letzter eigener Ping
+    for(let i=0;i<3;i++){const rt=t-i*0.3;if(rt<0)continue;
+      const r=rt*260,ra=clamp(1-rt/1.6,0,1)*0.4;
+      ctx.globalAlpha=ra;ctx.strokeStyle="#8fe6ff";ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(W/2,H*0.42,r,0,7);ctx.stroke();}
+    ctx.globalAlpha=1;
+    endingNoise(clamp(t*0.4,0,0.25),140);
+  }else if(t<END_P2){ // reines Signalrauschen - totaler Ausfall statt einfach nur "schwarz"
+    const pulse=0.12+0.06*Math.sin(t*9);
+    endingNoise(pulse,320);
+    endingScanlines(0.08+0.03*Math.sin(t*5));
+  }else if(t<END_P3){ // Silhouetten werden durch mehrere Echoringe sichtbar
+    const pr=clamp((t-END_P2)/(END_P3-END_P2),0,1);
+    for(let ring=0;ring<3;ring++){
+      const rt=clamp(pr-ring*0.12,0,1);if(rt<=0)continue;
+      const ringR=rt*Math.max(W,H)*0.8;
+      for(const g of endingGhosts){const gx=g.fx*W,gy=g.fy*H,d=Math.hypot(gx-W/2,gy-H/2);
+        if(d>ringR||d<ringR-70)continue;
+        const a=clamp(1-(ringR-d)/220,0.18,0.42);
+        ctx.globalAlpha=a;ctx.fillStyle="#0d0f16";
+        ctx.beginPath();ctx.ellipse(gx,gy,g.r*0.75,g.r,0,0,7);ctx.fill();
+        // gelegentliches Aufflackern hunterartiger Augen - sie waren auch mal Pulsgänger
+        const eyeOn=Math.sin(t*g.eyeSpeed*3+g.eyePhase)>0.86;
+        if(eyeOn){ctx.globalAlpha=a*1.4;ctx.shadowColor="#ff1f3a";ctx.shadowBlur=8;ctx.fillStyle="#ff1f3a";
+          ctx.beginPath();ctx.arc(gx-g.r*0.28,gy-g.r*0.3,1.4,0,7);ctx.fill();
+          ctx.beginPath();ctx.arc(gx+g.r*0.28,gy-g.r*0.3,1.4,0,7);ctx.fill();ctx.shadowBlur=0;}
+      }
+      ctx.globalAlpha=clamp((rt)*1.4,0,0.3)*(1-ring*0.25);
+      ctx.strokeStyle=ring===0?"#8fa4c8":"#3fe0ff";ctx.lineWidth=ring===0?2:1;
+      ctx.beginPath();ctx.arc(W/2,H/2,ringR,0,7);ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    endingNoise(0.05,60);endingScanlines(0.05);
+  }else if(t<END_P4){ // "KENNUNG 3 — GEFUNDEN." löst sich aus dem Rauschen zu klarem Text
     for(const g of endingGhosts){ctx.globalAlpha=0.3;ctx.fillStyle="#0d0f16";
       ctx.beginPath();ctx.ellipse(g.fx*W,g.fy*H,g.r*0.75,g.r,0,0,7);ctx.fill();}ctx.globalAlpha=1;
     const a=clamp((t-END_P3)/0.8,0,1)*clamp((END_P4-t)/0.6,0,1);
-    ctx.globalAlpha=a;ctx.fillStyle="#e7eefc";ctx.textAlign="center";
-    ctx.font=`700 ${Math.round(Math.min(W,H)*0.045)}px system-ui,sans-serif`;
-    ctx.fillText("KENNUNG 3 — GEFUNDEN.",W/2,H/2);ctx.globalAlpha=1;
-  }else if(t<END_P5){ // list reveal
+    const glitchAmt=clamp(1-(t-END_P3)/1.4,0,1); // scrambled -> klar
+    glitchText("KENNUNG 3 — GEFUNDEN.",W/2,H/2,Math.round(Math.min(W,H)*0.045),700,"#e7eefc",glitchAmt,a);
+    endingNoise(0.04,50);endingScanlines(0.05);
+  }else if(t<END_P5){ // Kennungs-Liste, zeilenweise aus dem Rauschen geschält
     const lines=["Kennung 1 — verstummt.","Kennung 2 — verstummt.",
       `Kennung 3 — ${save.highscore.toLocaleString('de-CH')} Pkt.`,"Kennung 4 — ?"];
-    const lh=Math.round(Math.min(W,H)*0.06);ctx.textAlign="center";ctx.font=`600 ${Math.round(lh*0.62)}px system-ui,sans-serif`;
+    const lh=Math.round(Math.min(W,H)*0.06);
     lines.forEach((ln,i)=>{const lineStart=END_P4+i*1.3;const a=clamp((t-lineStart)/0.7,0,1);
       if(a<=0)return;
       if(i===3&&a>0&&!endingStingPlayed){endingStingPlayed=true;Audio_.sting();}
-      ctx.globalAlpha=a;ctx.fillStyle=i===3?"#ff5470":"#c9d6ee";
-      ctx.fillText(ln,W/2,H/2-lh+i*lh);});ctx.globalAlpha=1;
-  }else{ // fade to logo
+      const glitchAmt=i===3?clamp(0.18+0.15*Math.sin(t*11),0,1):clamp(1-(t-lineStart)/0.6,0,1);
+      if(i===3){ // roter Puls-Halo hinter der unaufgelösten letzten Zeile
+        ctx.globalAlpha=a*(0.2+0.1*Math.sin(t*6));ctx.fillStyle="#ff5470";
+        ctx.beginPath();ctx.ellipse(W/2,H/2-lh+i*lh,140,32,0,0,7);ctx.fill();ctx.globalAlpha=1;}
+      glitchText(ln,W/2,H/2-lh+i*lh,Math.round(lh*0.62),600,i===3?"#ff5470":"#c9d6ee",glitchAmt,a);});
+    endingNoise(0.03,40);endingScanlines(0.05);
+  }else{ // Fade zum Logo, umringt von auslaufenden Ping-Wellen
     const a=clamp((t-END_P5)/(END_DUR-END_P5),0,1);
     Audio_.setTension(0.55*(1-a));
-    ctx.globalAlpha=a;ctx.fillStyle="#e7eefc";ctx.textAlign="center";
-    ctx.font=`800 ${Math.round(Math.min(W,H)*0.08)}px system-ui,sans-serif`;ctx.fillText("BLACKOUT",W/2,H/2);ctx.globalAlpha=1;
+    for(let i=0;i<4;i++){const rt=((t-END_P5)*0.5+i*0.6)%2.4;
+      const r=rt*220,ra=clamp(1-rt/2.4,0,1)*0.25*a;
+      ctx.globalAlpha=ra;ctx.strokeStyle="#3fe0ff";ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(W/2,H/2,r,0,7);ctx.stroke();}
+    ctx.globalAlpha=1;
+    const glitchAmt=clamp(1-a*1.8,0,1);
+    glitchText("BLACKOUT",W/2,H/2,Math.round(Math.min(W,H)*0.08),800,"#e7eefc",glitchAmt,a);
+    endingNoise(0.02*(1-a),25);
   }
+
+  endingScanlines(0.045);
+  endingVignette(0.35);
+  if(shakeAmt>0.1)ctx.restore();
 }
+
 function showEpilogue(){
   document.getElementById("ep-lore").textContent=`${save.loreFound.length}/${LORE_TOTAL}`;
   document.getElementById("ep-cos").textContent=`${save.owned.length}/${Object.keys(COSMETICS).length}`;
