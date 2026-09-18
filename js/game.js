@@ -49,6 +49,7 @@ cv.addEventListener("pointerdown",()=>{if(game.state==="playing"&&!isTouch())doP
 /* ================= Helpers ================= */
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function panFor(x){if(!game.player)return 0;return clamp((x-game.player.x)/450,-1,1);}
 function addParticle(x,y,color,n,spd){for(let i=0;i<n;i++){const a=rand(0,7),s=rand(spd*0.3,spd);
   game.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(0.3,0.7),max:0.7,color,r:rand(1.5,3.5)});}}
 function emitNoise(x,y,radius,alert){game.noises.push({x,y,radius,alert});}
@@ -60,14 +61,15 @@ function doPing(){if(game.state!=="playing"||game.pingCd>0||!game.player)return;
   game.pingCd=PING_CD;const p=game.player;
   const pr=((game.world.id===3||game.world.id===4)&&game.blackoutActive)?PING_R*0.5:PING_R;
   addPulse(p.x,p.y,pr,PING_SPD,22,auraColor(save.equipped.aura,game.t));
-  emitNoise(p.x,p.y,PING_NOISE,true);Audio_.ensure();Audio_.ping();
+  emitNoise(p.x,p.y,PING_NOISE,true);Audio_.ensure();Audio_.ping(0);
   for(const e of game.enemies){const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy);
     if(d<PING_KB_R&&d>0.01){const f=(1-d/PING_KB_R)*PING_KB_FORCE;
       e.x=clamp(e.x+dx/d*f,ARENA_MARGIN,game.arenaW-ARENA_MARGIN);
       e.y=clamp(e.y+dy/d*f,ARENA_MARGIN,game.arenaH-ARENA_MARGIN);}}
   if(game.hunter)game.hunter.agitatedUntil=game.t+HUNTER_AGITATE_DUR;
   if(game.glimpseMode&&Math.random()<0.25){const a=rand(0,7),d=rand(pr*0.75,pr*0.98);
-    game.glimpses.push({x:p.x+Math.cos(a)*d,y:p.y+Math.sin(a)*d,life:1.1,max:1.1});Audio_.glimpse();}}
+    const gx=p.x+Math.cos(a)*d,gy=p.y+Math.sin(a)*d;
+    game.glimpses.push({x:gx,y:gy,life:1.1,max:1.1});Audio_.glimpse(panFor(gx));}}
 
 function doDash(){if(game.state!=="playing"||!game.player)return;const p=game.player;
   if(p.dashCd>0||p.dashing>0)return;
@@ -155,7 +157,7 @@ function spawnEnemy(type,hpScale,noMinions){
     dashCd:rand(0.5,1.5),screechCd:rand(2,4),spitCd:rand(1,2),lunge:0,boss:!!base.boss,
     shootCd:base.shootCd||0,pattern:base.pattern||0,minionCd:rand(4,6),lungeCd:2,noMinions:!!noMinions};
   game.enemies.push(e);game.alive++;
-  if(base.boss){Audio_.boss();showToast("⚠ BOSS",1400);game.shake=14;}
+  if(base.boss){Audio_.boss(panFor(x));showToast("⚠ BOSS",1400);game.shake=14;}
   return e;
 }
 function spawnPickup(x,y,kind,sub){game.pickups.push({x,y,kind,sub,r:11,vis:0,pulseT:-99,t:0,bob:rand(0,7)});}
@@ -170,7 +172,7 @@ function fireBossPattern(e){
   else if(e.pattern===4){shoot(ang,210);shoot(ang+0.18,210);shoot(ang-0.18,210);
     if(Math.random()<0.4)for(let i=0;i<10;i++)shoot(i/10*Math.PI*2,130);}
   else{for(let i=0;i<12;i++)shoot(i/12*Math.PI*2,150);shoot(ang);shoot(ang+0.15);shoot(ang-0.15);}
-  Audio_.enemyShot();
+  Audio_.enemyShot(panFor(e.x));
 }
 
 /* ================= Main loop ================= */
@@ -190,6 +192,12 @@ function update(dt){
     else{game.blackoutTimer-=dt;
       if(game.blackoutTimer<=0){game.blackoutActive=true;game.blackoutDur=rand(BLACKOUT_DUR_MIN,BLACKOUT_DUR_MAX)*(game.curseBlackoutMult||1);
         showToast("⚠ BLACKOUT",1300);Audio_.enemyShot();}}}
+  {
+    const hunterDist=game.hunter?Math.hypot(game.hunter.x-p.x,game.hunter.y-p.y):9999;
+    const hunterNear=hunterDist<260?clamp(1-hunterDist/260,0,1):0;
+    const tension=Math.max(game.blackoutActive?1:0,hunterNear);
+    Audio_.setTension(tension);
+  }
   const spawnLater=[];
 
   // movement
@@ -274,7 +282,7 @@ function update(dt){
     if(base.spits){e.spitCd-=dt;if(e.spitCd<=0&&dToP<520){e.spitCd=rand(2.0,3.0);
       const a=Math.atan2(p.y-e.y,p.x-e.x),bs=180;
       game.enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*bs,vy:Math.sin(a)*bs,life:3.8,dmg:8,r:7,color:"#ffca4d"});
-      e.pulseT=game.t;Audio_.enemyShot();}}
+      e.pulseT=game.t;Audio_.enemyShot(panFor(e.x));}}
     if(e.boss){
       const enraged=e.type==="mrx"&&e.hp<e.maxhp*0.4;
       e.shootCd-=dt;if(e.shootCd<=0&&dToP<680){e.shootCd=base.shootCd*(enraged?0.65:1);fireBossPattern(e);}
@@ -310,7 +318,7 @@ function update(dt){
     for(const e of game.enemies){if(e.dead)continue;
       if(b.pierce&&b.hit&&b.hit.has(e))continue;
       if(Math.hypot(b.x-e.x,b.y-e.y)<e.r+3){e.hp-=b.dmg;e.pulseT=game.t;e.alert=true;
-        addParticle(b.x,b.y,e.color,4,120);Audio_.hit();if(e.hp<=0)killEnemy(e);
+        addParticle(b.x,b.y,e.color,4,120);Audio_.hit(panFor(b.x));if(e.hp<=0)killEnemy(e);
         if(b.pierce){if(!b.hit)b.hit=new Set();b.hit.add(e);}else{b.life=0;break;}}}}
   game.bullets=game.bullets.filter(b=>b.life>0&&b.x>0&&b.y>0&&b.x<game.arenaW&&b.y<game.arenaH);
 
@@ -333,7 +341,7 @@ function update(dt){
     ln.vis=Math.max(aura,pv,0.15);
     if(!ln.found&&d<ln.r+p.r+8){ln.found=true;
       if(!save.loreFound.includes(ln.id)){save.loreFound.push(ln.id);persist();}
-      Audio_.pickup();addParticle(ln.x,ln.y,"#8fa4c8",14,120);showToast(`"${STORY_FRAGMENTS[ln.id]}"`,4200,true);}}
+      Audio_.pickup(panFor(ln.x));addParticle(ln.x,ln.y,"#8fa4c8",14,120);showToast(`"${STORY_FRAGMENTS[ln.id]}"`,4200,true);}}
 
   // Mr. X
   if(game.hunter){const h=game.hunter;
@@ -353,7 +361,7 @@ function update(dt){
 
   // ambient dread (world 1: distant footsteps only)
   if(game.world.id===1){game.ambientStepTimer-=dt;
-    if(game.ambientStepTimer<=0){game.ambientStepTimer=rand(16,30);Audio_.distantSteps();}}
+    if(game.ambientStepTimer<=0){game.ambientStepTimer=rand(16,30);Audio_.distantSteps(rand(-1,1));}}
 
   // glimpses (world 2, non-interactive scripted sightings)
   for(const g of game.glimpses)g.life-=dt;
@@ -372,7 +380,7 @@ function update(dt){
 
 function killEnemy(e){
   if(e.dead)return;e.dead=true;game.alive--;
-  addParticle(e.x,e.y,e.color,e.boss?30:12,e.boss?260:170);Audio_.kill();
+  addParticle(e.x,e.y,e.color,e.boss?30:12,e.boss?260:170);Audio_.kill(panFor(e.x));
   const base=ENEMIES[e.type];
   if(base&&base.explodes){const p=game.player,d=Math.hypot(e.x-p.x,e.y-p.y),R=95;
     addParticle(e.x,e.y,"#ff6a3d",22,240);game.shake=Math.max(game.shake,10);
@@ -390,11 +398,11 @@ function killEnemy(e){
 }
 function tryDropCosmetic(x,y){if(unownedOfWorld(game.world.id).length===0){game.score+=200;return;}spawnPickup(x,y,"cosmetic");}
 function collectPickup(pk){const p=game.player;
-  if(pk.kind==="health"){p.hp=Math.min(p.maxhp,p.hp+22);updateHud();Audio_.pickup();addParticle(pk.x,pk.y,"#ff9a6b",8,120);showToast("+HP",900);return;}
-  if(pk.kind==="cosmetic"){const un=unownedOfWorld(game.world.id);if(un.length===0){game.score+=200;Audio_.pickup();return;}
+  if(pk.kind==="health"){p.hp=Math.min(p.maxhp,p.hp+22);updateHud();Audio_.pickup(panFor(pk.x));addParticle(pk.x,pk.y,"#ff9a6b",8,120);showToast("+HP",900);return;}
+  if(pk.kind==="cosmetic"){const un=unownedOfWorld(game.world.id);if(un.length===0){game.score+=200;Audio_.pickup(panFor(pk.x));return;}
     const id=un[Math.floor(Math.random()*un.length)];save.owned.push(id);game.gotCosmetics.push(id);persist();
-    Audio_.pickup();addParticle(pk.x,pk.y,"#ffd35c",16,160);showToast(`🎁 Neu: ${cosName(id)}`,1800);return;}
-  if(pk.kind==="power"){p.buffs[pk.sub]=POWER_DUR;Audio_.pickup();
+    Audio_.pickup(panFor(pk.x));addParticle(pk.x,pk.y,"#ffd35c",16,160);showToast(`🎁 Neu: ${cosName(id)}`,1800);return;}
+  if(pk.kind==="power"){p.buffs[pk.sub]=POWER_DUR;Audio_.pickup(panFor(pk.x));
     addParticle(pk.x,pk.y,POWERS[pk.sub].color,14,150);showToast(`⚡ ${POWERS[pk.sub].name}!`,1500);}}
 
 /* ================= Render ================= */
@@ -592,7 +600,7 @@ let toastTO,toastPriorityUntil=0;function showToast(t,d,priority){
 /* ================= Win / Lose ================= */
 function levelComplete(){
   if(game.state!=="playing")return;game.state="done";
-  document.getElementById("hud").classList.remove("active");Audio_.win();
+  document.getElementById("hud").classList.remove("active");Audio_.win();Audio_.setTension(0);
   const bonus=1000+game.levelIdx*400+(game.world.id-1)*600;game.score+=bonus;
   let reward=null;const un=unownedOfWorld(game.world.id).filter(id=>!game.gotCosmetics.includes(id));
   if(un.length){reward=un[Math.floor(Math.random()*un.length)];save.owned.push(reward);persist();}
@@ -603,7 +611,7 @@ function levelComplete(){
 }
 function gameOver(){
   if(game.state!=="playing")return;game.state="dead";
-  document.getElementById("hud").classList.remove("active");Audio_.lose();
+  document.getElementById("hud").classList.remove("active");Audio_.lose();Audio_.setTension(0);
   const newHigh=game.score>save.highscore;if(newHigh)save.highscore=game.score;persist();
   showResult(false,{newHigh});
 }
@@ -648,7 +656,7 @@ function resumeGame(){if(game.state!=="paused")return;game.state="playing";showS
 document.getElementById("btnPause").onclick=pauseGame;
 document.getElementById("btnResume").onclick=resumeGame;
 document.getElementById("btnRestart").onclick=()=>startLevelFade(game.world.id,game.levelIdx);
-document.getElementById("btnQuit").onclick=()=>{game.state="menu";document.getElementById("hud").classList.remove("active");goToWorld(game.world.id);};
+document.getElementById("btnQuit").onclick=()=>{game.state="menu";document.getElementById("hud").classList.remove("active");Audio_.setTension(0);goToWorld(game.world.id);};
 
 /* ================= Fade ================= */
 const fadeEl=document.getElementById("fade");
@@ -727,7 +735,7 @@ document.getElementById("btnChar").onclick=()=>{buildCharacter();showScreen("cha
 document.getElementById("btnHow").onclick=()=>showScreen("how");
 document.getElementById("btnCharTop").onclick=()=>{buildCharacter();showScreen("char");};
 document.getElementById("btnCharTop2").onclick=()=>{buildCharacter();showScreen("char");};
-document.getElementById("btnMute").onclick=()=>{save.muted=!save.muted;persist();refreshMenuStats();};
+document.getElementById("btnMute").onclick=()=>{save.muted=!save.muted;persist();refreshMenuStats();Audio_.muteChanged();};
 document.getElementById("btnReset").onclick=()=>{if(confirm("Wirklich den gesamten Fortschritt löschen? (Cosmetics, Welten, Highscore)")){
   save=structuredClone(DEFAULT_SAVE);persist();refreshMenuStats();}};
 document.querySelectorAll("[data-back]").forEach(b=>{b.onclick=()=>{const t=b.dataset.back;
