@@ -395,4 +395,5 @@ const DECOR_POOLS={
   4:{n:[6,9],types:["blood_pool","blood_pool","blood_drop","gear","scratch"]}
 };
 const HUNTER_SPEED=42, HUNTER_R=17, HUNTER_DMG=25, HUNTER_AGITATE=1.7, HUNTER_AGITATE_DUR=2.6;
+const HUNTER_BLACKOUT_PING_BOOST=2.6, HUNTER_BLACKOUT_PING_DUR=1.3;
 

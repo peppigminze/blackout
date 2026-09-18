@@ -67,6 +67,12 @@ function doPing(){if(game.state!=="playing"||game.pingCd>0||!game.player)return;
       e.x=clamp(e.x+dx/d*f,ARENA_MARGIN,game.arenaW-ARENA_MARGIN);
       e.y=clamp(e.y+dy/d*f,ARENA_MARGIN,game.arenaH-ARENA_MARGIN);}}
   if(game.hunter)game.hunter.agitatedUntil=game.t+HUNTER_AGITATE_DUR;
+  if(game.hunter&&(game.world.id===3||game.world.id===4)&&game.blackoutActive){
+    // Während einer Blackout-Phase verrät jeder Ping deine Position sofort und hart -
+    // der Hunter reagiert mit einem kurzen, sehr aggressiven Sprint statt nur normaler Agitation.
+    game.hunter.pingLungeUntil=game.t+HUNTER_BLACKOUT_PING_DUR;
+    Audio_.enemyShot(panFor(game.hunter.x));
+  }
   if(game.glimpseMode&&Math.random()<0.25){const a=rand(0,7),d=rand(pr*0.75,pr*0.98);
     const gx=p.x+Math.cos(a)*d,gy=p.y+Math.sin(a)*d;
     game.glimpses.push({x:gx,y:gy,life:1.1,max:1.1});Audio_.glimpse(panFor(gx));}}
@@ -198,7 +204,8 @@ function update(dt){
   {
     const hunterDist=game.hunter?Math.hypot(game.hunter.x-p.x,game.hunter.y-p.y):9999;
     const hunterNear=hunterDist<260?clamp(1-hunterDist/260,0,1):0;
-    const tension=Math.max(game.blackoutActive?1:0,hunterNear);
+    const pingLungeActive=game.hunter&&game.t<(game.hunter.pingLungeUntil||0);
+    const tension=Math.max(game.blackoutActive?1:0,hunterNear,pingLungeActive?1:0);
     Audio_.setTension(tension);
   }
   const spawnLater=[];
@@ -349,8 +356,9 @@ function update(dt){
   // Mr. X
   if(game.hunter){const h=game.hunter;
     const agitated=game.t<h.agitatedUntil;
+    const pingLunge=game.t<(h.pingLungeUntil||0);
     const blackoutBoost=((game.world.id===3||game.world.id===4)&&game.blackoutActive)?1.5:1;
-    const spd=HUNTER_SPEED*(agitated?HUNTER_AGITATE:1)*blackoutBoost;
+    const spd=HUNTER_SPEED*(pingLunge?HUNTER_BLACKOUT_PING_BOOST:(agitated?HUNTER_AGITATE:1))*blackoutBoost;
     const ang=Math.atan2(p.y-h.y,p.x-h.x);
     h.x=clamp(h.x+Math.cos(ang)*spd*dt,ARENA_MARGIN,game.arenaW-ARENA_MARGIN);
     h.y=clamp(h.y+Math.sin(ang)*spd*dt,ARENA_MARGIN,game.arenaH-ARENA_MARGIN);
@@ -510,11 +518,12 @@ function render(){
     ctx.fillStyle="#0a0c14";ctx.beginPath();ctx.ellipse(g.x,g.y,13,17,0,0,7);ctx.fill();ctx.globalAlpha=1;}
 
   if(game.hunter&&game.hunter.vis>0.04){const h=game.hunter;ctx.globalAlpha=h.vis;
-    ctx.fillStyle="#05060a";ctx.shadowColor="#ff1f3a";ctx.shadowBlur=6;
+    const lunging=game.t<(h.pingLungeUntil||0);
+    ctx.fillStyle="#05060a";ctx.shadowColor="#ff1f3a";ctx.shadowBlur=lunging?14:6;
     ctx.beginPath();ctx.ellipse(h.x,h.y,h.r*0.8,h.r,0,0,7);ctx.fill();
-    ctx.shadowBlur=10;ctx.fillStyle="#ff1f3a";
-    ctx.beginPath();ctx.arc(h.x-4,h.y-4,1.6,0,7);ctx.fill();
-    ctx.beginPath();ctx.arc(h.x+4,h.y-4,1.6,0,7);ctx.fill();
+    ctx.shadowBlur=lunging?18:10;ctx.fillStyle="#ff1f3a";
+    ctx.beginPath();ctx.arc(h.x-4,h.y-4,lunging?2.3:1.6,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(h.x+4,h.y-4,lunging?2.3:1.6,0,7);ctx.fill();
     ctx.shadowBlur=0;ctx.globalAlpha=1;}
 
   ctx.shadowColor=acol;ctx.shadowBlur=10;
