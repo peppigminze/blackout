@@ -6,12 +6,12 @@
 // Solange FIREBASE_CONFIG.projectId leer ist, bleibt das Leaderboard deaktiviert und die
 // UI zeigt einen Hinweis statt zu crashen.
 const FIREBASE_CONFIG={
-  apiKey:"",
-  authDomain:"",
-  projectId:"",
-  storageBucket:"",
-  messagingSenderId:"",
-  appId:""
+  apiKey:"AIzaSyC_9ED0orn_PvpaP6XGrbY1w-YEqbysZo0",
+  authDomain:"blackout-53513.firebaseapp.com",
+  projectId:"blackout-53513",
+  storageBucket:"blackout-53513.firebasestorage.app",
+  messagingSenderId:"58299307411",
+  appId:"1:58299307411:web:867a83449a525f93d8c466"
 };
 const LB_COLLECTION="leaderboard";
 const LB_LIMIT=20;
