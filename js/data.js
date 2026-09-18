@@ -316,19 +316,76 @@ function checkCurseOffer(){if(game.curseChoicePending)return;
   for(const k of game.curseOfferKills){if(game.curseOfferedThresholds.has(k))continue;
     if(game.kills>=k){game.curseOfferedThresholds.add(k);const id=pickCurse();if(id)offerCurse(id);return;}}}
 
+/* ---- Story-Fragmente: Lese-Overlay mit Typewriter-Effekt ---- */
+function showLoreReading(id){
+  const text=STORY_FRAGMENTS[id];if(!text)return;
+  game.readingLore=true;
+  const stale=document.getElementById("loreReading");if(stale)stale.remove();
+  const el=document.createElement("div");el.id="loreReading";
+  el.style.cssText="position:fixed;inset:0;z-index:92;background:#05070df0;display:flex;align-items:center;justify-content:center;padding:24px;";
+  el.innerHTML=`<div style="max-width:480px;width:100%;text-align:center;">
+    <div style="font-size:11px;letter-spacing:.24em;color:#5a7a99;margin-bottom:14px;">SIGNAL EMPFANGEN</div>
+    <p id="loreReadingText" style="color:#c9e8ff;font-size:17px;line-height:1.7;min-height:4.5em;font-style:italic;"></p>
+    <button class="btn ghost small" id="loreReadingSkip" style="margin-top:18px;opacity:.7;">Weiter</button>
+  </div>`;
+  document.body.appendChild(el);
+  const txtEl=document.getElementById("loreReadingText");
+  let i=0,done=false,typeTO=null,closeTO=null;
+  function typeStep(){
+    if(i>=text.length){done=true;closeTO=setTimeout(closeReading,1800);return;}
+    txtEl.textContent+=text[i];i++;
+    typeTO=setTimeout(typeStep,22);
+  }
+  function closeReading(){
+    clearTimeout(typeTO);clearTimeout(closeTO);
+    el.remove();game.readingLore=false;lastT=performance.now();
+  }
+  typeStep();
+  document.getElementById("loreReadingSkip").onclick=()=>{
+    if(!done){clearTimeout(typeTO);txtEl.textContent=text;done=true;closeTO=setTimeout(closeReading,900);}
+    else closeReading();
+  };
+}
+
+/* ---- Archiv/Codex: Nachlese aller gefundenen Fragmente ---- */
+function buildCodex(){
+  const el=document.getElementById("codexList");el.innerHTML="";
+  const byWorld={};
+  Object.keys(STORY_FRAGMENTS).forEach(id=>{
+    const wid=parseInt(id.split("-")[0],10);
+    (byWorld[wid]=byWorld[wid]||[]).push(id);
+  });
+  Object.keys(byWorld).sort((a,b)=>a-b).forEach(wid=>{
+    const world=worldById(parseInt(wid,10));
+    const sec=document.createElement("div");
+    sec.innerHTML=`<h3 style="font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;">${world?world.name:"Welt "+wid}</h3>`;
+    byWorld[wid].forEach(id=>{
+      const found=save.loreFound.includes(id);
+      const row=document.createElement("div");
+      row.style.cssText="border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:8px;background:linear-gradient(180deg,#101b30,#0a1120);";
+      row.innerHTML=found
+        ? `<div style="color:#c9e8ff;font-size:14px;font-style:italic;line-height:1.5;">"${STORY_FRAGMENTS[id]}"</div>`
+        : `<div style="color:#3a4a6a;font-size:14px;letter-spacing:.06em;">████████ ███ ██████████ ████.</div>`;
+      sec.appendChild(row);
+    });
+    el.appendChild(sec);
+  });
+}
+document.getElementById("btnCodex").onclick=()=>{buildCodex();showScreen("codex");};
+
 const STORY_FRAGMENTS={
-  "1-0":"TAG 1: Signal verloren. Falls das hier jemand liest — bleibt im Licht. Es kommt aus der Dunkelheit.",
-  "1-2":"SIE PINGEN NICHT MEHR. WARUM PINGEN SIE NICHT MEHR.",
-  "1-4":"Ich hab wen gesehen. Kein Schatten. Stand einfach da. Wartete.",
-  "2-0":"Er pingt nicht. Er braucht es nicht mehr.",
-  "2-2":"Vermisst: Pulsgänger, Kennung 3. Akte sonst leer.",
-  "2-4":"Kennung 3 war mein Name. Bevor. Bevor was?",
-  "3-0":"Kennung 3. Kennung 3. Kennung 3. Ich schreib's, damit ich's nicht vergesse.",
-  "3-2":"Es gab nie eine Rettungsmission. Wir wurden geschickt, um IHN zu finden.",
-  "3-4":"TAG 1: Signal verloren. Falls das hier jemand liest—",
-  "4-0":"Archiv-Zugriff gewährt. Aufzeichnungen aller Pulsgänger-Kennungen, unvollständig.",
-  "4-1":"Kennung 1: verstummt, Tag 4. Kennung 2: verstummt, Tag 2. Ein Muster.",
-  "4-2":"Er war nicht immer so. Er hat aufgehört zu pingen, um uns zu retten. Wir haben es nie verstanden."
+  "1-0":"Tag eins ohne Netz. Wenn das wer liest: bleib im Licht. Da unten ist was, das auf dich wartet, nicht auf dich zukommt.",
+  "1-2":"In die Wand geritzt, immer wieder: WARUM PINGEN SIE NICHT MEHR. Keine Antwort, nur die Frage, dutzendfach.",
+  "1-4":"Kein Umriss, kein Gegner. Er stand einfach da und hat gewartet, bis ich wieder gepingt hab.",
+  "2-0":"Er braucht keinen Puls mehr. Er sieht uns längst, ohne zu suchen.",
+  "2-2":"Vermisstenmeldung, halb verkohlt: Pulsgänger, Kennung 3. Der Rest der Akte fehlt.",
+  "2-4":"Kennung 3. Der Name stand mal für mich. Bevor was genau — daran erinnere ich mich nicht mehr.",
+  "3-0":"Ich schreib die Zahl immer wieder auf, damit ich sie nicht verliere: Kennung 3. Kennung 3.",
+  "3-2":"Keine Rettungsmission. Nie gewesen. Wir wurden geschickt, um ihn zu finden — nicht, um ihn zu retten.",
+  "3-4":"Tag eins ohne Netz. Wenn das wer lie—",
+  "4-0":"Zugriff gewährt. Aufzeichnungen aller Pulsgänger-Kennungen — lückenhaft, aber lesbar.",
+  "4-1":"Kennung 1: verstummt am vierten Tag. Kennung 2: verstummt am zweiten. Ein Muster, kein Zufall.",
+  "4-2":"Er war nicht immer so. Er hat aufgehört zu pingen, um uns zu schützen. Wir haben das erst zu spät verstanden."
 };
 const LORE_TOTAL=Object.keys(STORY_FRAGMENTS).length;
 const DECOR_POOLS={

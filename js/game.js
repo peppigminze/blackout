@@ -12,7 +12,7 @@ const game={state:"menu",world:null,levelIdx:0,cfg:null,
   bossSpawned:false,bossKilled:false,cam:{x:0,y:0},arenaW:0,arenaH:0,pingCd:0,shake:0,
   gotCosmetics:[],godMode:false,levelMod:null,blindTimer:0,
   blackoutActive:false,blackoutTimer:0,blackoutDur:0,
-  curses:[],curseChoicePending:false,curseOfferKills:[],curseOfferedThresholds:new Set(),
+  curses:[],curseChoicePending:false,readingLore:false,curseOfferKills:[],curseOfferedThresholds:new Set(),
   curseScoreMult:1,curseAuraMult:1,curseSpawnMult:1,curseDropMult:1,curseBlackoutMult:1,
   minibossSpawned:false,loreNodes:[],decor:[],hunter:null,glimpses:[],ambientStepTimer:0};
 const ARENA_MARGIN=60;
@@ -97,7 +97,7 @@ function startLevel(worldId,levelIdx){
   game.blindTimer=game.levelMod==="blind_start"?10:0;
   game.blackoutActive=false;game.blackoutDur=0;
   game.blackoutTimer=(world.id===3||world.id===4)?rand(BLACKOUT_GAP_MIN,BLACKOUT_GAP_MAX):0;
-  game.curses=[];game.curseChoicePending=false;game.curseOfferedThresholds=new Set();
+  game.curses=[];game.curseChoicePending=false;game.readingLore=false;game.curseOfferedThresholds=new Set();
   game.curseScoreMult=1;game.curseAuraMult=1;game.curseSpawnMult=1;game.curseDropMult=1;game.curseBlackoutMult=1;
   game.minibossSpawned=false;game.loreNodes=[];game.decor=[];game.hunter=null;game.glimpses=[];
   game.glimpseMode=(world.id===2&&levelIdx<2);
@@ -125,7 +125,9 @@ function startLevel(worldId,levelIdx){
   if(STORY_FRAGMENTS[fragId]){let lx,ly,tr=0;
     do{lx=rand(ARENA_MARGIN+60,game.arenaW-ARENA_MARGIN-60);ly=rand(ARENA_MARGIN+60,game.arenaH-ARENA_MARGIN-60);tr++;}
     while(Math.hypot(lx-game.player.x,ly-game.player.y)<220&&tr<30);
-    game.loreNodes.push({x:lx,y:ly,id:fragId,r:13,vis:0,pulseT:-99,t:0,bob:rand(0,7),found:false});}
+    const words=STORY_FRAGMENTS[fragId].split(" ");
+    const preview=words.slice(0,4).join(" ")+(words.length>4?" …":"");
+    game.loreNodes.push({x:lx,y:ly,id:fragId,r:13,vis:0,pulseT:-99,t:0,bob:rand(0,7),found:false,preview});}
   if(world.id===3||(world.id===2&&levelIdx>=2)||(world.id===4&&levelIdx<3)){let hx,hy;
     const corner=Math.floor(Math.random()*4);
     hx=corner%2===0?ARENA_MARGIN+60:game.arenaW-ARENA_MARGIN-60;
@@ -182,6 +184,7 @@ function loop(now){if(game.state!=="playing")return;
 
 function update(dt){
   if(game.curseChoicePending)return;
+  if(game.readingLore)return;
   game.t+=dt;const p=game.player;
   if(game.pingCd>0)game.pingCd-=dt;
   if(game.blindTimer>0)game.blindTimer-=dt;
@@ -341,7 +344,7 @@ function update(dt){
     ln.vis=Math.max(aura,pv,0.15);
     if(!ln.found&&d<ln.r+p.r+8){ln.found=true;
       if(!save.loreFound.includes(ln.id)){save.loreFound.push(ln.id);persist();}
-      Audio_.pickup(panFor(ln.x));addParticle(ln.x,ln.y,"#8fa4c8",14,120);showToast(`"${STORY_FRAGMENTS[ln.id]}"`,4200,true);}}
+      Audio_.pickup(panFor(ln.x));addParticle(ln.x,ln.y,"#8fa4c8",14,120);showLoreReading(ln.id);}}
 
   // Mr. X
   if(game.hunter){const h=game.hunter;
@@ -459,11 +462,12 @@ function render(){
     ctx.shadowBlur=0;ctx.globalAlpha=1;}
 
   for(const ln of game.loreNodes){if(ln.vis<0.06)continue;ctx.globalAlpha=ln.vis;
-    const bob=Math.sin(ln.t*2+ln.bob)*2,col="#c9d6ee";
-    ctx.shadowColor=col;ctx.shadowBlur=16;ctx.fillStyle=col;
-    ctx.beginPath();ctx.moveTo(ln.x-8,ln.y-10+bob);ctx.lineTo(ln.x+4,ln.y-10+bob);ctx.lineTo(ln.x+8,ln.y-6+bob);
-    ctx.lineTo(ln.x+8,ln.y+10+bob);ctx.lineTo(ln.x-8,ln.y+10+bob);ctx.closePath();ctx.fill();
-    ctx.shadowBlur=0;ctx.globalAlpha=1;}
+    const bob=Math.sin(ln.t*2+ln.bob)*2,col="#8fe6ff";
+    ctx.save();ctx.translate(ln.x,ln.y+bob);
+    ctx.font=`13px "Segoe UI", system-ui, sans-serif`;ctx.textAlign="center";
+    ctx.shadowColor=col;ctx.shadowBlur=14*ln.vis;ctx.fillStyle=col;
+    ctx.fillText(ln.found?"» gelesen «":ln.preview,0,0);
+    ctx.shadowBlur=0;ctx.restore();ctx.globalAlpha=1;}
 
   for(const g of game.glimpses){const a=clamp(g.life/g.max,0,1)*0.55;ctx.globalAlpha=a;
     ctx.fillStyle="#0a0c14";ctx.beginPath();ctx.ellipse(g.x,g.y,13,17,0,0,7);ctx.fill();ctx.globalAlpha=1;}
@@ -663,7 +667,7 @@ const fadeEl=document.getElementById("fade");
 function startLevelFade(w,l){fadeEl.classList.add("on");setTimeout(()=>{startLevel(w,l);fadeEl.classList.remove("on");},300);}
 
 /* ================= Screens ================= */
-const screens={menu:"scr-menu",how:"scr-how",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
+const screens={menu:"scr-menu",how:"scr-how",codex:"scr-codex",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
 function showScreen(name){Object.values(screens).forEach(id=>document.getElementById(id).classList.remove("active"));
   document.getElementById("stick").innerHTML="";if(name)document.getElementById(screens[name]).classList.add("active");}
 

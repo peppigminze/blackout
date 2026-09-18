@@ -25,6 +25,7 @@
       <button class="btn primary" id="btnPlay">SPIELEN</button>
       <button class="btn" id="btnChar">CHARAKTER</button>
       <button class="btn ghost" id="btnHow">Wie spielt man?</button>
+      <button class="btn ghost" id="btnCodex">🗄 Archiv</button>
     </div>
     <div class="stats">
       <div class="s"><b id="m-hs">0</b>Highscore</div>
@@ -59,6 +60,15 @@
       <div>🎁 <b>Cosmetics</b> — selten von Gegnern, am Boden, garantiert fürs Abschließen. Rüste sie im Charakter-Menü aus.</div>
     </div>
     <div class="btnrow" style="margin-top:22px"><button class="btn primary" data-back="menu">Los geht's</button></div>
+  </div>
+</div>
+
+<div class="screen scrollable" id="scr-codex">
+  <div class="topbar"><button class="btn ghost" data-back="menu">← Zurück</button><div></div></div>
+  <div class="wrap" style="max-width:640px">
+    <h2 style="text-align:center">Archiv</h2>
+    <div class="sub" style="text-align:center">Gefundene Übertragungen aus dem Undergrid.</div>
+    <div id="codexList" style="display:flex;flex-direction:column;gap:18px;margin-top:10px"></div>
   </div>
 </div>
 
