@@ -135,9 +135,10 @@ function startLevel(worldId,levelIdx){
     if(Math.hypot(dx-game.player.x,dy-game.player.y)<180)continue;
     game.decor.push({x:dx,y:dy,type:dp.types[Math.floor(Math.random()*dp.types.length)],rot:rand(0,7),scale:rand(0.8,1.3)});}
   const fragId=`${worldId}-${levelIdx}`;
-  if(STORY_FRAGMENTS[fragId]){let lx,ly,tr=0;
-    do{lx=rand(ARENA_MARGIN+60,game.arenaW-ARENA_MARGIN-60);ly=rand(ARENA_MARGIN+60,game.arenaH-ARENA_MARGIN-60);tr++;}
-    while(Math.hypot(lx-game.player.x,ly-game.player.y)<220&&tr<30);
+  if(STORY_FRAGMENTS[fragId]){let lx,ly,tr=0,blocked;
+    do{lx=rand(ARENA_MARGIN+60,game.arenaW-ARENA_MARGIN-60);ly=rand(ARENA_MARGIN+60,game.arenaH-ARENA_MARGIN-60);tr++;
+      blocked=game.obstacles.some(o=>Math.hypot(lx-o.x,ly-o.y)<o.r+40);}
+    while((Math.hypot(lx-game.player.x,ly-game.player.y)<220||blocked)&&tr<40);
     const words=STORY_FRAGMENTS[fragId].split(" ");
     const preview=words.slice(0,4).join(" ")+(words.length>4?" …":"");
     game.loreNodes.push({x:lx,y:ly,id:fragId,r:13,vis:0,pulseT:-99,t:0,bob:rand(0,7),found:false,preview});}
@@ -817,7 +818,7 @@ const fadeEl=document.getElementById("fade");
 function startLevelFade(w,l){fadeEl.classList.add("on");setTimeout(()=>{startLevel(w,l);fadeEl.classList.remove("on");},300);}
 
 /* ================= Screens ================= */
-const screens={menu:"scr-menu",how:"scr-how",codex:"scr-codex",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
+const screens={menu:"scr-menu",codex:"scr-codex",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
 function showScreen(name){Object.values(screens).forEach(id=>document.getElementById(id).classList.remove("active"));
   document.getElementById("stick").innerHTML="";if(name)document.getElementById(screens[name]).classList.add("active");}
 
@@ -892,7 +893,6 @@ document.getElementById("btnPlay").onclick=()=>{Audio_.ensure();
   }else{buildWorlds();showScreen("worlds");}
 };
 document.getElementById("btnChar").onclick=()=>{buildCharacter();showScreen("char");};
-document.getElementById("btnHow").onclick=()=>showScreen("how");
 document.getElementById("btnCharTop").onclick=()=>{buildCharacter();showScreen("char");};
 document.getElementById("btnCharTop2").onclick=()=>{buildCharacter();showScreen("char");};
 document.getElementById("btnMute").onclick=()=>{save.muted=!save.muted;persist();refreshMenuStats();Audio_.muteChanged();};
