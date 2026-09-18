@@ -124,4 +124,6 @@
   .fadeblack{position:fixed;inset:0;background:#000;z-index:40;opacity:0;pointer-events:none;transition:opacity .28s;}
   .fadeblack.on{opacity:1;}
   .credit{position:absolute;bottom:12px;color:#33425f;font-size:11px;letter-spacing:.16em;}
+  .ep-delay{opacity:0;transform:translateY(6px);transition:opacity 1s ease,transform 1s ease;}
+  .ep-delay.show{opacity:1;transform:none;}
   .muteToggle{cursor:pointer;}

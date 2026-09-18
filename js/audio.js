@@ -92,6 +92,11 @@ const Audio_=(()=>{
     enemyShot(pan){tone(300,160,0.12,"sawtooth",0.06,pan);},
     win(){[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,f,0.18,"triangle",0.12),i*110));},
     lose(){[400,300,200,120].forEach((f,i)=>setTimeout(()=>tone(f,f*0.7,0.24,"sawtooth",0.13),i*130));},
-    boss(pan){tone(90,55,0.5,"sawtooth",0.14,pan);}
+    boss(pan){tone(90,55,0.5,"sawtooth",0.14,pan);},
+    // Für den Abspann: langsame, absteigende Moll-Tonfolge statt triumphaler Fanfare -
+    // der Twist ("was, wenn du auch aufhörst zu pingen?") ist kein Sieg, sondern offen/unbequem.
+    reveal(){[440,392,349,330].forEach((f,i)=>setTimeout(()=>tone(f,f*0.9,1.0,"sine",0.08),i*950));},
+    // Kurzer, dissonanter Sting für den Moment, in dem "Kennung 4 — ?" erscheint
+    sting(){tone(220,210,0.6,"sawtooth",0.05);tone(233,150,0.9,"sine",0.045);}
   };
 })();

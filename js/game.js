@@ -570,14 +570,14 @@ function render(){
 
 /* ================= Ending Sequence ================= */
 const END_P1=2.0, END_P2=4.0, END_P3=9.5, END_P4=13.5, END_P5=20.0, END_DUR=23.0;
-let endingGhosts=[],endingSkip=false;
+let endingGhosts=[],endingSkip=false,endingStingPlayed=false;
 function triggerEnding(){
-  game.state="ending";endingSkip=false;
+  game.state="ending";endingSkip=false;endingStingPlayed=false;
   document.getElementById("hud").classList.remove("active");showScreen(null);
   if(save.progress[4]<4)save.progress[4]=4;
   save.storyComplete=true;
   if(!save.owned.includes("skin_kennung3"))save.owned.push("skin_kennung3");
-  persist();Audio_.win();
+  persist();Audio_.reveal();Audio_.setTension(0.55);
   endingGhosts=[];for(let i=0;i<7;i++)endingGhosts.push({fx:rand(0.12,0.88),fy:rand(0.2,0.8),r:rand(14,22)});
   const skipEl=document.createElement("div");skipEl.id="endSkip";skipEl.textContent="Überspringen ›";
   skipEl.style.cssText="position:fixed;bottom:22px;right:22px;z-index:95;color:#5a6070;font-size:13px;padding:10px 14px;cursor:pointer;";
@@ -611,13 +611,17 @@ function drawEndingFrame(t){
     ctx.font=`700 ${Math.round(Math.min(W,H)*0.045)}px system-ui,sans-serif`;
     ctx.fillText("KENNUNG 3 — GEFUNDEN.",W/2,H/2);ctx.globalAlpha=1;
   }else if(t<END_P5){ // list reveal
-    const lines=["Kennung 1 — verstummt.","Kennung 2 — verstummt.","Kennung 3 — gefunden.","Kennung 4 — ?"];
+    const lines=["Kennung 1 — verstummt.","Kennung 2 — verstummt.",
+      `Kennung 3 — ${save.highscore.toLocaleString('de-CH')} Pkt.`,"Kennung 4 — ?"];
     const lh=Math.round(Math.min(W,H)*0.06);ctx.textAlign="center";ctx.font=`600 ${Math.round(lh*0.62)}px system-ui,sans-serif`;
     lines.forEach((ln,i)=>{const lineStart=END_P4+i*1.3;const a=clamp((t-lineStart)/0.7,0,1);
-      if(a<=0)return;ctx.globalAlpha=a;ctx.fillStyle=i===3?"#ff5470":"#c9d6ee";
+      if(a<=0)return;
+      if(i===3&&a>0&&!endingStingPlayed){endingStingPlayed=true;Audio_.sting();}
+      ctx.globalAlpha=a;ctx.fillStyle=i===3?"#ff5470":"#c9d6ee";
       ctx.fillText(ln,W/2,H/2-lh+i*lh);});ctx.globalAlpha=1;
   }else{ // fade to logo
     const a=clamp((t-END_P5)/(END_DUR-END_P5),0,1);
+    Audio_.setTension(0.55*(1-a));
     ctx.globalAlpha=a;ctx.fillStyle="#e7eefc";ctx.textAlign="center";
     ctx.font=`800 ${Math.round(Math.min(W,H)*0.08)}px system-ui,sans-serif`;ctx.fillText("BLACKOUT",W/2,H/2);ctx.globalAlpha=1;
   }
@@ -625,7 +629,16 @@ function drawEndingFrame(t){
 function showEpilogue(){
   document.getElementById("ep-lore").textContent=`${save.loreFound.length}/${LORE_TOTAL}`;
   document.getElementById("ep-cos").textContent=`${save.owned.length}/${Object.keys(COSMETICS).length}`;
+  Audio_.setTension(0);
   showScreen("epilogue");
+  const statsEl=document.querySelector("#scr-epilogue .stats");
+  const btnrowEl=document.querySelector("#scr-epilogue .btnrow");
+  if(statsEl&&btnrowEl){
+    statsEl.classList.add("ep-delay");btnrowEl.classList.add("ep-delay");
+    // erst die Stats, dann (versetzt) die Buttons einblenden statt alles sofort da zu haben
+    setTimeout(()=>statsEl.classList.add("show"),150);
+    setTimeout(()=>btnrowEl.classList.add("show"),900);
+  }
 }
 document.getElementById("btnEpilogueMenu").onclick=()=>{refreshMenuStats();showScreen("menu");};
 document.getElementById("btnEpilogueChar").onclick=()=>{save.equipped.skin="skin_kennung3";persist();buildCharacter();showScreen("char");};
