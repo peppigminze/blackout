@@ -439,12 +439,49 @@ function render(){
 
   for(const dc of game.decor){const d=Math.hypot(dc.x-p.x,dc.y-p.y);const dvis=clamp(1-d/(220*(auraR/AURA)),0,1)*0.7;
     if(dvis<0.04)continue;ctx.globalAlpha=dvis;ctx.save();ctx.translate(dc.x,dc.y);ctx.rotate(dc.rot);ctx.scale(dc.scale,dc.scale);
-    if(dc.type==="blood_drop"||dc.type==="blood_pool"){ctx.fillStyle="#4a0f14";const n=dc.type==="blood_pool"?5:3;
-      for(let i=0;i<n;i++){const a=i/n*Math.PI*2;ctx.beginPath();ctx.ellipse(Math.cos(a)*6,Math.sin(a)*4,7,5,a,0,7);ctx.fill();}}
+    if(dc.type==="blood_pool"){
+      // unregelmässige Blutlache: mehrere überlappende, unterschiedlich grosse Blobs + Rand-Gradient statt einfachem Kreis
+      const blobs=dc.blobs||(dc.blobs=Array.from({length:5},(_,i)=>({
+        a:i/5*Math.PI*2+rand(-0.3,0.3),dist:rand(3,9),rx:rand(6,11),ry:rand(4,8),rot:rand(0,7)})));
+      for(const b of blobs){
+        const bx=Math.cos(b.a)*b.dist,by=Math.sin(b.a)*b.dist;
+        const g=ctx.createRadialGradient(bx,by,0,bx,by,Math.max(b.rx,b.ry));
+        g.addColorStop(0,"#5c1219");g.addColorStop(0.7,"#3a0c11");g.addColorStop(1,"rgba(58,12,17,0)");
+        ctx.fillStyle=g;ctx.save();ctx.translate(bx,by);ctx.rotate(b.rot);
+        ctx.beginPath();ctx.ellipse(0,0,b.rx,b.ry,0,0,7);ctx.fill();ctx.restore();
+      }
+      // ein paar kleine Spritzer am Rand
+      const spatter=dc.spatter||(dc.spatter=Array.from({length:4},()=>({a:rand(0,7),dist:rand(12,18),r:rand(1,2.2)})));
+      ctx.fillStyle="#4a0f14";
+      for(const s of spatter){ctx.beginPath();ctx.arc(Math.cos(s.a)*s.dist,Math.sin(s.a)*s.dist,s.r,0,7);ctx.fill();}
+    }
+    else if(dc.type==="blood_drop"){
+      // kleinerer Spritzer mit "Flugrichtung": Tropfenform statt Kreis
+      const dir=dc.dropDir||(dc.dropDir=rand(0,7));
+      ctx.save();ctx.rotate(dir);
+      const g=ctx.createRadialGradient(0,2,0,0,2,8);
+      g.addColorStop(0,"#5c1219");g.addColorStop(1,"rgba(58,12,17,0)");
+      ctx.fillStyle=g;
+      ctx.beginPath();ctx.moveTo(0,-7);ctx.quadraticCurveTo(6,3,0,9);ctx.quadraticCurveTo(-6,3,0,-7);ctx.fill();
+      ctx.restore();
+      const spatter=dc.spatter||(dc.spatter=Array.from({length:2},()=>({a:rand(0,7),dist:rand(6,10),r:rand(0.8,1.6)})));
+      ctx.fillStyle="#4a0f14";
+      for(const s of spatter){ctx.beginPath();ctx.arc(Math.cos(s.a)*s.dist,Math.sin(s.a)*s.dist,s.r,0,7);ctx.fill();}
+    }
     else if(dc.type==="gear"){ctx.fillStyle="#2a2418";ctx.strokeStyle="#4a4030";ctx.lineWidth=1.5;
-      ctx.fillRect(-9,-6,18,12);ctx.strokeRect(-9,-6,18,12);ctx.beginPath();ctx.moveTo(-9,-2);ctx.lineTo(9,-2);ctx.stroke();}
-    else if(dc.type==="scratch"){ctx.strokeStyle="#8899aa";ctx.lineWidth=1.5;
-      for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-8+i*6,-10);ctx.lineTo(-4+i*6,10);ctx.stroke();}}
+      ctx.fillRect(-9,-6,18,12);ctx.strokeRect(-9,-6,18,12);ctx.beginPath();ctx.moveTo(-9,-2);ctx.lineTo(9,-2);ctx.stroke();
+      // Rostflecken: ein paar zufällige dunkle Punkte auf der Fläche
+      const rust=dc.rust||(dc.rust=Array.from({length:5},()=>({x:rand(-8,8),y:rand(-5,5),r:rand(0.6,1.4)})));
+      ctx.fillStyle="#1a140c";for(const r of rust){ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,7);ctx.fill();}}
+    else if(dc.type==="scratch"){
+      // leicht gebogene Krallenspuren statt gerader Linien, mit variierender Deckkraft
+      const lines=dc.lines||(dc.lines=Array.from({length:3},(_,i)=>({
+        x0:-8+i*6,x1:-4+i*6,bow:rand(-3,3),a:rand(0.45,0.85)})));
+      ctx.strokeStyle="#8899aa";ctx.lineWidth=1.5;ctx.lineCap="round";
+      for(const l of lines){ctx.globalAlpha=dvis*l.a;
+        ctx.beginPath();ctx.moveTo(l.x0,-10);ctx.quadraticCurveTo((l.x0+l.x1)/2+l.bow,0,l.x1,10);ctx.stroke();}
+      ctx.globalAlpha=dvis;
+    }
     ctx.restore();ctx.globalAlpha=1;}
 
   for(const pk of game.pickups){if(pk.vis<0.06)continue;ctx.globalAlpha=pk.vis;
