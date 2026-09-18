@@ -970,7 +970,21 @@ function openAdminPanel(){
 /* ================= PWA: Service Worker ================= */
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{
-    navigator.serviceWorker.register("./sw.js").catch(()=>{ /* z.B. lokal via file:// - einfach ignorieren */ });
+    navigator.serviceWorker.register("./sw.js").then(reg=>{
+      // Sobald ein neuer Service Worker die Kontrolle übernimmt (z.B. weil sw.js sich
+      // geändert hat), einmalig neu laden, damit bereits offene Tabs das Update auch
+      // WIRKLICH sehen statt erst beim nächsten manuellen Reload. Guard gegen Reload-
+      // Schleifen über sessionStorage.
+      let reloading=false;
+      navigator.serviceWorker.addEventListener("controllerchange",()=>{
+        if(reloading)return;reloading=true;
+        if(!sessionStorage.getItem("swReloaded")){
+          sessionStorage.setItem("swReloaded","1");
+          location.reload();
+        }
+      });
+      if(reg)reg.update().catch(()=>{});
+    }).catch(()=>{ /* z.B. lokal via file:// - einfach ignorieren */ });
   });
 }
 
