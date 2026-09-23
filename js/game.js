@@ -44,13 +44,7 @@ function renderStick(){if(!touchMove.active){stickEl.innerHTML="";return;}
     <div class="stick-knob" style="left:${touchMove.bx+touchMove.dx*55}px;top:${touchMove.by+touchMove.dy*55}px"></div>`;}
 document.getElementById("pingBtn").addEventListener("pointerdown",e=>{e.preventDefault();doPing();});
 document.getElementById("dashBtn").addEventListener("pointerdown",e=>{e.preventDefault();doDash();});
-// Schießen ist jetzt "Knopf/Taste halten" statt Auto-Fire - macht Waffen (unterschiedliche
-// Feuerraten/Reichweiten) spürbar und lässt bewusst entscheiden, wann man laut wird.
-let shootHeld=false;
-function stopShoot(){shootHeld=false;}
-document.getElementById("shootBtn").addEventListener("pointerdown",e=>{e.preventDefault();if(game.state==="playing")shootHeld=true;});
-cv.addEventListener("pointerdown",()=>{if(game.state==="playing"&&!isTouch())shootHeld=true;});
-addEventListener("pointerup",stopShoot);addEventListener("pointercancel",stopShoot);addEventListener("blur",stopShoot);
+cv.addEventListener("pointerdown",()=>{if(game.state==="playing"&&!isTouch())doPing();});
 
 /* ================= Helpers ================= */
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -129,7 +123,7 @@ function startLevel(worldId,levelIdx){
   game.arenaH=Math.round(Math.max(1150,H*1.4)*(tight?0.72:1));
   game.enemies=[];game.bullets=[];game.enemyBullets=[];game.particles=[];game.pickups=[];game.pulses=[];game.noises=[];
   game.kills=0;game.killsNeeded=cfg.kills;game.score=0;game.combo=0;game.maxCombo=0;game.comboTimer=0;
-  game.spawnTimer=0.5;game.alive=0;game.t=0;game.pingCd=0;game.shake=0;stopShoot();
+  game.spawnTimer=0.5;game.alive=0;game.t=0;game.pingCd=0;game.shake=0;
   game.bossSpawned=false;game.bossKilled=false;game.gotCosmetics=[];
   game.blindTimer=game.levelMod==="blind_start"?10:0;
   game.blackoutActive=false;game.blackoutDur=0;
@@ -343,9 +337,9 @@ function update(dt){
   }
   spawnLater.forEach(t=>{if(game.alive<cfg.maxAlive+3)spawnEnemy(t);});
 
-  // fire (nur solange SHOOT gehalten wird)
+  // auto fire (mit den Werten der ausgerüsteten Waffe)
   p.fireCd-=dt;
-  if(p.fireCd<=0&&shootHeld)fireWeapon(p);
+  if(p.fireCd<=0)fireWeapon(p);
 
   // player bullets
   for(const b of game.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
@@ -594,7 +588,6 @@ function render(){
   ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   const pb=document.getElementById("pingBtn");if(game.pingCd>0||game.blindTimer>0)pb.classList.add("cooling");else pb.classList.remove("cooling");
   const db=document.getElementById("dashBtn");if(p.dashCd>0)db.classList.add("cooling");else db.classList.remove("cooling");
-  const sb=document.getElementById("shootBtn");if(shootHeld)sb.classList.add("active");else sb.classList.remove("active");
 }
 
 /* ================= Ending Sequence ================= */
@@ -828,7 +821,7 @@ function showResult(win,info){
 function goToWorld(wid){buildLevels(wid);showScreen("levels");}
 
 /* ================= Pause ================= */
-function pauseGame(){if(game.state!=="playing")return;game.state="paused";stopShoot();
+function pauseGame(){if(game.state!=="playing")return;game.state="paused";
   document.getElementById("hud").classList.remove("active");showScreen("pause");}
 function resumeGame(){if(game.state!=="paused")return;game.state="playing";showScreen(null);
   document.getElementById("hud").classList.add("active");lastT=performance.now();requestAnimationFrame(loop);}

@@ -105,14 +105,9 @@
   .pingbtn.cooling{opacity:.4;border-color:#456;color:#678;}
   .dashbtn{width:64px;height:64px;font-size:11px;border-color:var(--gold);color:var(--gold);
     box-shadow:0 0 20px rgba(255,211,92,.22);}
-  .shootbtn{width:76px;height:76px;font-size:12px;border-color:var(--lime);color:var(--lime);
-    box-shadow:0 0 20px rgba(166,255,92,.22);}
-  .shootbtn.active{background:radial-gradient(60% 60% at 50% 40%,rgba(166,255,92,.4),rgba(166,255,92,.1));
-    box-shadow:0 0 28px rgba(166,255,92,.4);transform:scale(.95);}
   @media(max-width:420px){
     .pingwrap{right:12px;bottom:14px;}
     .pingbtn{width:68px;height:68px;font-size:11px;}
-    .shootbtn{width:60px;height:60px;font-size:9px;}
     .dashbtn{width:52px;height:52px;font-size:9px;}
   }
   .pausebtn{pointer-events:auto;position:absolute;top:44px;right:14px;}
