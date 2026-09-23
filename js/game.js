@@ -409,7 +409,10 @@ function killEnemy(e){
   game.kills++;game.combo++;game.maxCombo=Math.max(game.maxCombo,game.combo);game.comboTimer=2.2;checkCurseOffer();
   const mult=1+Math.min(game.combo-1,9)*0.15;game.score+=Math.round(e.pts*mult*(game.curseScoreMult||1));
   if(game.combo>=3)showCombo(game.combo);save.totalKills++;
-  if(e.boss){game.bossKilled=true;game.shake=18;if(e.type!=="mrx")tryDropCosmetic(e.x,e.y);}   // Boss: garantierter Drop-Versuch
+  if(e.boss){game.shake=18;if(e.type!=="mrx")tryDropCosmetic(e.x,e.y);
+    // Bei "Doppel-Boss" laufen zwei Boss-Gegner gleichzeitig - erst wenn KEINER mehr lebt,
+    // gilt der Kampf als gewonnen (sonst würde der erste Kill sofort das Level beenden).
+    if(!game.enemies.some(en=>en.boss&&!en.dead))game.bossKilled=true;}
   else if(Math.random()<0.09*(game.curseDropMult||1))tryDropCosmetic(e.x,e.y);                        // erhöhte Drop-Chance
   else if(Math.random()<0.07){const pk=Object.keys(POWERS);spawnPickup(e.x,e.y,"power",pk[Math.floor(Math.random()*pk.length)]);}
   else if(Math.random()<0.12)spawnPickup(e.x,e.y,"health");
