@@ -11,7 +11,7 @@
 // "bekommt der Spieler das Update" nicht mehr allein davon ab, ob diese Datei manuell
 // hochgezählt wurde. Icons/Manifest bleiben cache-first (ändern sich praktisch nie,
 // spart Bandbreite).
-const CACHE_NAME = "blackout-cache-v1.8";
+const CACHE_NAME = "blackout-cache-v1.9";
 const ASSETS = [
   "./",
   "./index.html",

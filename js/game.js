@@ -44,7 +44,13 @@ function renderStick(){if(!touchMove.active){stickEl.innerHTML="";return;}
     <div class="stick-knob" style="left:${touchMove.bx+touchMove.dx*55}px;top:${touchMove.by+touchMove.dy*55}px"></div>`;}
 document.getElementById("pingBtn").addEventListener("pointerdown",e=>{e.preventDefault();doPing();});
 document.getElementById("dashBtn").addEventListener("pointerdown",e=>{e.preventDefault();doDash();});
-cv.addEventListener("pointerdown",()=>{if(game.state==="playing"&&!isTouch())doPing();});
+// Schießen ist jetzt "Knopf/Taste halten" statt Auto-Fire - macht Waffen (unterschiedliche
+// Feuerraten/Reichweiten) spürbar und lässt bewusst entscheiden, wann man laut wird.
+let shootHeld=false;
+function stopShoot(){shootHeld=false;}
+document.getElementById("shootBtn").addEventListener("pointerdown",e=>{e.preventDefault();if(game.state==="playing")shootHeld=true;});
+cv.addEventListener("pointerdown",()=>{if(game.state==="playing"&&!isTouch())shootHeld=true;});
+addEventListener("pointerup",stopShoot);addEventListener("pointercancel",stopShoot);addEventListener("blur",stopShoot);
 
 /* ================= Helpers ================= */
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -95,6 +101,24 @@ function doDash(){if(game.state!=="playing"||!game.player)return;const p=game.pl
   p.dashing=DASH_TIME;p.dashCd=DASH_CD*(p.dashCdMult||1);p.inv=Math.max(p.inv,DASH_TIME+0.1);
   Audio_.ensure();Audio_.dash();}
 
+function fireWeapon(p){
+  const wp=equippedWeapon();
+  let target=null,bd=1e9;
+  for(const e of game.enemies){if(e.vis<0.28)continue;const d=Math.hypot(e.x-p.x,e.y-p.y);
+    if(d<wp.range&&d<bd){bd=d;target=e;}}
+  if(!target)return;
+  p.fireCd=wp.fireCd*(p.buffs.rapid?0.55:1)*(p.fireRateMult||1);
+  p.dir=Math.atan2(target.y-p.y,target.x-p.x);
+  const pierce=wp.pierce||!!p.buffs.pierce;
+  const dmg=wp.dmg*(p.dmgMult||1);
+  const life=wp.range/wp.bulletSpeed+0.15;
+  const mkBullet=ang=>game.bullets.push({x:p.x+Math.cos(ang)*p.r,y:p.y+Math.sin(ang)*p.r,vx:Math.cos(ang)*wp.bulletSpeed,vy:Math.sin(ang)*wp.bulletSpeed,life,dmg,pierce});
+  if(wp.pattern==="spread3"){mkBullet(p.dir-0.18);mkBullet(p.dir);mkBullet(p.dir+0.18);}
+  else{mkBullet(p.dir);if(wp.pattern==="double")mkBullet(p.dir+0.12);}
+  if(p.buffs.double)mkBullet(p.dir+(wp.pattern==="double"?0.24:0.12));
+  emitNoise(p.x,p.y,200,true);Audio_.shot();
+}
+
 /* ================= Level start ================= */
 function startLevel(worldId,levelIdx){
   const world=worldById(worldId),cfg=world.levels[levelIdx];
@@ -105,7 +129,7 @@ function startLevel(worldId,levelIdx){
   game.arenaH=Math.round(Math.max(1150,H*1.4)*(tight?0.72:1));
   game.enemies=[];game.bullets=[];game.enemyBullets=[];game.particles=[];game.pickups=[];game.pulses=[];game.noises=[];
   game.kills=0;game.killsNeeded=cfg.kills;game.score=0;game.combo=0;game.maxCombo=0;game.comboTimer=0;
-  game.spawnTimer=0.5;game.alive=0;game.t=0;game.pingCd=0;game.shake=0;
+  game.spawnTimer=0.5;game.alive=0;game.t=0;game.pingCd=0;game.shake=0;stopShoot();
   game.bossSpawned=false;game.bossKilled=false;game.gotCosmetics=[];
   game.blindTimer=game.levelMod==="blind_start"?10:0;
   game.blackoutActive=false;game.blackoutDur=0;
@@ -319,16 +343,9 @@ function update(dt){
   }
   spawnLater.forEach(t=>{if(game.alive<cfg.maxAlive+3)spawnEnemy(t);});
 
-  // auto fire
+  // fire (nur solange SHOOT gehalten wird)
   p.fireCd-=dt;
-  if(p.fireCd<=0){let target=null,bd=1e9;
-    for(const e of game.enemies){if(e.vis<0.28)continue;const d=Math.hypot(e.x-p.x,e.y-p.y);
-      if(d<560&&d<bd){bd=d;target=e;}}
-    if(target){p.fireCd=(p.buffs.rapid?0.13:0.24)*(p.fireRateMult||1);p.dir=Math.atan2(target.y-p.y,target.x-p.x);const sp=580;
-      const pierce=!!p.buffs.pierce;const dmg=1*(p.dmgMult||1);
-      const mkBullet=ang=>game.bullets.push({x:p.x+Math.cos(ang)*p.r,y:p.y+Math.sin(ang)*p.r,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:1.1,dmg,pierce});
-      mkBullet(p.dir);if(p.buffs.double)mkBullet(p.dir+0.12);
-      emitNoise(p.x,p.y,200,true);Audio_.shot();}}
+  if(p.fireCd<=0&&shootHeld)fireWeapon(p);
 
   // player bullets
   for(const b of game.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
@@ -409,7 +426,10 @@ function killEnemy(e){
   game.kills++;game.combo++;game.maxCombo=Math.max(game.maxCombo,game.combo);game.comboTimer=2.2;checkCurseOffer();
   const mult=1+Math.min(game.combo-1,9)*0.15;game.score+=Math.round(e.pts*mult*(game.curseScoreMult||1));
   if(game.combo>=3)showCombo(game.combo);save.totalKills++;
-  if(e.boss){game.bossKilled=true;game.shake=18;if(e.type!=="mrx")tryDropCosmetic(e.x,e.y);}   // Boss: garantierter Drop-Versuch
+  if(e.boss){game.shake=18;if(e.type!=="mrx")tryDropCosmetic(e.x,e.y);
+    // Bei "Doppel-Boss" laufen zwei Boss-Gegner gleichzeitig - erst wenn KEINER mehr lebt,
+    // gilt der Kampf als gewonnen (sonst würde der erste Kill sofort das Level beenden).
+    if(!game.enemies.some(en=>en.boss&&!en.dead))game.bossKilled=true;}
   else if(Math.random()<0.09*(game.curseDropMult||1))tryDropCosmetic(e.x,e.y);                        // erhöhte Drop-Chance
   else if(Math.random()<0.07){const pk=Object.keys(POWERS);spawnPickup(e.x,e.y,"power",pk[Math.floor(Math.random()*pk.length)]);}
   else if(Math.random()<0.12)spawnPickup(e.x,e.y,"health");
@@ -574,6 +594,7 @@ function render(){
   ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   const pb=document.getElementById("pingBtn");if(game.pingCd>0||game.blindTimer>0)pb.classList.add("cooling");else pb.classList.remove("cooling");
   const db=document.getElementById("dashBtn");if(p.dashCd>0)db.classList.add("cooling");else db.classList.remove("cooling");
+  const sb=document.getElementById("shootBtn");if(shootHeld)sb.classList.add("active");else sb.classList.remove("active");
 }
 
 /* ================= Ending Sequence ================= */
@@ -621,6 +642,7 @@ function triggerEnding(){
   if(save.progress[4]<4)save.progress[4]=4;
   save.storyComplete=true;
   if(!save.owned.includes("skin_kennung3"))save.owned.push("skin_kennung3");
+  if(!save.owned.includes("weapon_kennung3"))save.owned.push("weapon_kennung3");
   persist();Audio_.reveal();Audio_.setTension(0.55);
   endingGhosts=[];for(let i=0;i<7;i++)endingGhosts.push({fx:rand(0.12,0.88),fy:rand(0.2,0.8),r:rand(14,22),
     eyePhase:rand(0,7),eyeSpeed:rand(0.6,1.4)});
@@ -742,7 +764,7 @@ function updateHud(){const p=game.player;if(!p)return;
   {const bk=Object.keys(p.buffs);document.getElementById("hudBuff").textContent=bk.length?bk.map(k=>`${POWERS[k].name} ${Math.ceil(p.buffs[k])}s`).join(" · "):"";}
   document.getElementById("hudKills").textContent=game.cfg.boss?`${game.kills}/${game.killsNeeded} + Boss`:`${game.kills} / ${game.killsNeeded} Kills`;
   const curseLabel=game.curses.length?` · 🔮${game.curses.map(id=>CURSES[id].name).join(", ")}`:"";
-  document.getElementById("hudLevel").textContent=`${game.world.name} · Lvl ${game.levelIdx+1}`+(game.levelMod?` · ${LEVEL_MODS[game.levelMod].label}`:"")+curseLabel;}
+  document.getElementById("hudLevel").textContent=`${game.world.name} · Lvl ${game.levelIdx+1}`+(game.levelMod?` · ${LEVEL_MODS[game.levelMod].label}`:"")+curseLabel+` · 🔫${equippedWeapon().name}`;}
 let comboTO;function showCombo(c){const el=document.getElementById("comboLbl");el.textContent=`${c}× COMBO`;
   el.classList.add("show");clearTimeout(comboTO);comboTO=setTimeout(()=>el.classList.remove("show"),700);}
 function hideCombo(){document.getElementById("comboLbl").classList.remove("show");}
@@ -806,7 +828,7 @@ function showResult(win,info){
 function goToWorld(wid){buildLevels(wid);showScreen("levels");}
 
 /* ================= Pause ================= */
-function pauseGame(){if(game.state!=="playing")return;game.state="paused";
+function pauseGame(){if(game.state!=="playing")return;game.state="paused";stopShoot();
   document.getElementById("hud").classList.remove("active");showScreen("pause");}
 function resumeGame(){if(game.state!=="paused")return;game.state="playing";showScreen(null);
   document.getElementById("hud").classList.add("active");lastT=performance.now();requestAnimationFrame(loop);}
@@ -852,7 +874,9 @@ function buildLevels(wid){const w=worldById(wid);
     if(unlocked)el.onclick=()=>{Audio_.ensure();startLevelFade(wid,i);};grid.appendChild(el);});}
 
 /* ================= Character ================= */
-function drawCosmeticPreview(c,id,size){c.clearRect(0,0,size,size);const cx=size/2,cy=size/2,r=size*0.28;
+function drawCosmeticPreview(c,id,size){
+  if(COSMETICS[id]&&COSMETICS[id].slot==="weapon"){drawWeaponIcon(c,id,size);return;}
+  c.clearRect(0,0,size,size);const cx=size/2,cy=size/2,r=size*0.28;
   const eq=structuredClone(save.equipped);const slot=COSMETICS[id]?COSMETICS[id].slot:null;if(slot)eq[slot]=id;
   drawCharacter(c,cx,cy,r,eq,{dir:-Math.PI/2},performance.now()/1000,true);}
 let previewRAF=null,previewLastT=0,charScrollingUntil=0;
@@ -870,7 +894,8 @@ function buildCharacter(){
   document.getElementById("c-cos").textContent=`${save.owned.length}/${Object.keys(COSMETICS).length}`;
   const slotsEl=document.getElementById("slots");slotsEl.innerHTML="";
   const groups=[{slot:"skin",title:"Körper",ids:Object.keys(SKINS)},{slot:"head",title:"Kopf",ids:HEADS},
-    {slot:"face",title:"Gesicht",ids:FACES},{slot:"aura",title:"Aura",ids:Object.keys(AURAS)}];
+    {slot:"face",title:"Gesicht",ids:FACES},{slot:"aura",title:"Aura",ids:Object.keys(AURAS)},
+    {slot:"weapon",title:"Waffe",ids:Object.keys(WEAPONS)}];
   groups.forEach(g=>{const sec=document.createElement("div");sec.className="slot";sec.innerHTML=`<h3>${g.title}</h3>`;
     const grid=document.createElement("div");grid.className="grid";
     g.ids.forEach(id=>{const owned=save.owned.includes(id);const meta=COSMETICS[id]||{world:0};
@@ -880,6 +905,7 @@ function buildCharacter(){
       if(meta.world>0){const wt=document.createElement("div");wt.className="wtag";wt.textContent="W"+meta.world;cell.appendChild(wt);}
       if(owned){const nm=document.createElement("div");nm.className="cname";nm.textContent=cosName(id);cell.appendChild(nm);
         drawCosmeticPreview(cvEl.getContext("2d"),id,140);
+        if(g.slot==="weapon"&&WEAPONS[id].desc)cell.title=WEAPONS[id].desc;
         cell.onclick=()=>{save.equipped[g.slot]=id;persist();buildCharacter();Audio_.pickup();};}
       grid.appendChild(cell);});
     sec.appendChild(grid);slotsEl.appendChild(sec);});

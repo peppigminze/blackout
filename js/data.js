@@ -9,8 +9,8 @@ const Store=(()=>{let mem={},ok=false;
 
 const SAVE_KEY="blackout_save_v1";
 const DEFAULT_SAVE={highscore:0,totalKills:0,progress:{1:0,2:0,3:0,4:0},
-  owned:["skin_default","face_default","head_none","aura_cyan"],
-  equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan"},best:{},muted:false,loreFound:[],storyComplete:false,tutorialDone:false,
+  owned:["skin_default","face_default","head_none","aura_cyan","weapon_pulse"],
+  equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan",weapon:"weapon_pulse"},best:{},muted:false,loreFound:[],storyComplete:false,tutorialDone:false,
   playerId:null,playerName:null};
 let save=loadSave();
 function loadSave(){try{const raw=Store.get(SAVE_KEY);if(!raw)return structuredClone(DEFAULT_SAVE);
@@ -47,6 +47,16 @@ const AURAS={
   aura_red:{name:"Rot",color:"#ff4d5e"},aura_purple:{name:"Lila",color:"#a24dff"},
   aura_white:{name:"Weiß",color:"#eef4ff"},aura_prism:{name:"Prisma",color:"prism"}
 };
+// ---- Waffen: gefunden wie Cosmetics (gleicher Drop-Pool), aber verändern die Spielmechanik ----
+const WEAPONS={
+  weapon_pulse:   {name:"Puls-Kanone",fireCd:0.24,dmg:1,   bulletSpeed:580,range:560,pattern:"single", pierce:false,desc:"Ausgewogen. Die Standardwaffe jedes Pulsgängers."},
+  weapon_needler: {name:"Nadler",     fireCd:0.13,dmg:0.55,bulletSpeed:660,range:480,pattern:"single", pierce:false,desc:"Sehr hohe Feuerrate, wenig Schaden pro Treffer."},
+  weapon_scatter: {name:"Schrot-Puls",fireCd:0.46,dmg:0.75,bulletSpeed:520,range:380,pattern:"spread3",pierce:false,desc:"Drei Impulse im Fächer, kurze Reichweite."},
+  weapon_lance:   {name:"Lanze",      fireCd:0.60,dmg:2.4, bulletSpeed:780,range:720,pattern:"single", pierce:true, desc:"Langsam, aber durchschlägt mehrere Gegner."},
+  weapon_kennung3:{name:"Kennung 3",  fireCd:0.16,dmg:1.3, bulletSpeed:700,range:620,pattern:"double", pierce:true, desc:"Was von ihm übrig blieb."}
+};
+function equippedWeapon(){return WEAPONS[save.equipped.weapon]||WEAPONS.weapon_pulse;}
+
 const FACES=["face_default","face_visor","face_robot","face_shades","face_angry","face_cool","face_ninja","face_cyclops","face_star","face_dead","face_sleepy"];
 const FACE_NAME={face_default:"Punkte",face_visor:"Visier",face_robot:"Roboter",face_shades:"Sonnenbrille",
   face_angry:"Wütend",face_cool:"Chillig",face_ninja:"Ninja",face_cyclops:"Zyklop",face_star:"Sterne",
@@ -59,26 +69,29 @@ const HEAD_NAME={head_none:"Ohne",head_cap:"Cap",head_hardhat:"Helm",head_beanie
 
 // id -> {slot, world}
 const COSMETICS={
-  skin_default:{slot:"skin",world:0},face_default:{slot:"face",world:0},head_none:{slot:"head",world:0},aura_cyan:{slot:"aura",world:0},
+  skin_default:{slot:"skin",world:0},face_default:{slot:"face",world:0},head_none:{slot:"head",world:0},aura_cyan:{slot:"aura",world:0},weapon_pulse:{slot:"weapon",world:0},
   // World 1
   skin_ash:{slot:"skin",world:1},skin_rust:{slot:"skin",world:1},skin_chrome:{slot:"skin",world:1},skin_ice:{slot:"skin",world:1},skin_aqua:{slot:"skin",world:1},
   aura_amber:{slot:"aura",world:1},aura_ice:{slot:"aura",world:1},
   face_visor:{slot:"face",world:1},face_robot:{slot:"face",world:1},
   head_cap:{slot:"head",world:1},head_hardhat:{slot:"head",world:1},head_beanie:{slot:"head",world:1},head_bandana:{slot:"head",world:1},head_bolt:{slot:"head",world:1},
+  weapon_needler:{slot:"weapon",world:1},
   // World 2
   skin_violet:{slot:"skin",world:2},skin_toxic:{slot:"skin",world:2},skin_bubblegum:{slot:"skin",world:2},skin_slime:{slot:"skin",world:2},skin_crimson:{slot:"skin",world:2},
   aura_magenta:{slot:"aura",world:2},aura_lime:{slot:"aura",world:2},aura_green:{slot:"aura",world:2},
   face_shades:{slot:"face",world:2},face_angry:{slot:"face",world:2},face_cool:{slot:"face",world:2},face_ninja:{slot:"face",world:2},
   head_mohawk:{slot:"head",world:2},head_antenna:{slot:"head",world:2},head_ears:{slot:"head",world:2},head_party:{slot:"head",world:2},head_spike:{slot:"head",world:2},
+  weapon_scatter:{slot:"weapon",world:2},
   // World 3
   skin_gold:{slot:"skin",world:3},skin_obsidian:{slot:"skin",world:3},skin_ember:{slot:"skin",world:3},skin_void:{slot:"skin",world:3},
   aura_red:{slot:"aura",world:3},aura_purple:{slot:"aura",world:3},aura_white:{slot:"aura",world:3},aura_prism:{slot:"aura",world:3},
   face_cyclops:{slot:"face",world:3},face_star:{slot:"face",world:3},face_dead:{slot:"face",world:3},face_sleepy:{slot:"face",world:3},
   head_crown:{slot:"head",world:3},head_halo:{slot:"head",world:3},head_horns:{slot:"head",world:3},head_wizard:{slot:"head",world:3},head_tophat:{slot:"head",world:3},
+  weapon_lance:{slot:"weapon",world:3},
   // Secret (Story-Ende)
-  skin_kennung3:{slot:"skin",world:99,secret:true}
+  skin_kennung3:{slot:"skin",world:99,secret:true},weapon_kennung3:{slot:"weapon",world:99,secret:true}
 };
-function cosName(id){return SKINS[id]?SKINS[id].name:AURAS[id]?AURAS[id].name:FACE_NAME[id]||HEAD_NAME[id]||id;}
+function cosName(id){return SKINS[id]?SKINS[id].name:AURAS[id]?AURAS[id].name:WEAPONS[id]?WEAPONS[id].name:FACE_NAME[id]||HEAD_NAME[id]||id;}
 function auraColor(id,t){const a=AURAS[id]||AURAS.aura_cyan;
   if(a.color==="prism"){return `hsl(${(t*60)%360},100%,65%)`;}return a.color;}
 function cosmeticsOfWorld(w){return Object.keys(COSMETICS).filter(id=>COSMETICS[id].world===w);}
@@ -189,6 +202,28 @@ function drawHead(ctx,id,r){
   else if(id==="head_tophat"){ctx.fillStyle="#151a26";ctx.fillRect(-r*0.95,-r*0.92,r*1.9,r*0.18);
     ctx.fillRect(-r*0.55,-r*1.7,r*1.1,r*0.82);ctx.fillStyle="#e0455a";ctx.fillRect(-r*0.55,-r*1.02,r*1.1,r*0.14);}
   ctx.restore();
+}
+// ---- Waffen-Icon: kein Körperteil wie Skin/Aura/Kopf, deshalb eigene abstrakte Vorschau ----
+function weaponColor(id){const meta=COSMETICS[id];if(!meta)return "#3fe0ff";
+  if(meta.secret)return "#ffd35c";
+  if(meta.world===0)return "#3fe0ff";
+  const w=worldById(meta.world);return w?w.color:"#3fe0ff";}
+function drawWeaponIcon(c,id,size){
+  const wp=WEAPONS[id];c.clearRect(0,0,size,size);if(!wp)return;
+  const col=weaponColor(id);
+  c.save();c.translate(size/2,size*0.58);
+  c.shadowColor=col;c.shadowBlur=size*0.16;c.strokeStyle=col;c.fillStyle=col;
+  c.lineWidth=Math.max(2,size*0.055);c.lineCap="round";
+  if(wp.pattern==="spread3"){
+    [-0.34,0,0.34].forEach(o=>{c.beginPath();c.moveTo(0,size*0.02);c.lineTo(Math.sin(o)*size*0.3,-size*0.34);c.stroke();});
+  }else if(wp.pattern==="double"){
+    [-1,1].forEach(s=>{c.beginPath();c.moveTo(s*size*0.09,size*0.03);c.lineTo(s*size*0.09,-size*0.36);c.stroke();});
+  }else{
+    c.beginPath();c.moveTo(0,size*0.03);c.lineTo(0,-size*0.38);c.stroke();
+    if(wp.pierce){c.beginPath();c.moveTo(0,-size*0.14);c.lineTo(0,-size*0.5);c.stroke();}
+  }
+  c.shadowBlur=0;c.beginPath();c.arc(0,size*0.14,size*0.08,0,7);c.fill();
+  c.restore();
 }
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
