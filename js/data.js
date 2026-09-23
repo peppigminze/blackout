@@ -11,6 +11,7 @@ const SAVE_KEY="blackout_save_v1";
 const DEFAULT_SAVE={highscore:0,totalKills:0,progress:{1:0,2:0,3:0,4:0},
   owned:["skin_default","face_default","head_none","aura_cyan","weapon_pulse"],
   equipped:{skin:"skin_default",face:"face_default",head:"head_none",aura:"aura_cyan",weapon:"weapon_pulse"},best:{},muted:false,loreFound:[],storyComplete:false,tutorialDone:false,
+  autoFire:true,controlPos:{},
   playerId:null,playerName:null};
 let save=loadSave();
 function loadSave(){try{const raw=Store.get(SAVE_KEY);if(!raw)return structuredClone(DEFAULT_SAVE);
@@ -48,12 +49,26 @@ const AURAS={
   aura_white:{name:"Weiß",color:"#eef4ff"},aura_prism:{name:"Prisma",color:"prism"}
 };
 // ---- Waffen: gefunden wie Cosmetics (gleicher Drop-Pool), aber verändern die Spielmechanik ----
+// burst/burstInterval: eine Salve pro Auslösen, läuft auch nach Loslassen automatisch zu Ende -
+// sinnvoll für "Halten"-Modus, wenn Hände eigentlich für Bewegen/Dash/Ping gebraucht werden:
+// kurz antippen reicht, die Salve feuert sich selbst aus. burst:1 = normale Einzelschuss-Waffe.
 const WEAPONS={
-  weapon_pulse:   {name:"Puls-Kanone",fireCd:0.24,dmg:1,   bulletSpeed:580,range:560,pattern:"single", pierce:false,desc:"Ausgewogen. Die Standardwaffe jedes Pulsgängers."},
-  weapon_needler: {name:"Nadler",     fireCd:0.13,dmg:0.55,bulletSpeed:660,range:480,pattern:"single", pierce:false,desc:"Sehr hohe Feuerrate, wenig Schaden pro Treffer."},
-  weapon_scatter: {name:"Schrot-Puls",fireCd:0.46,dmg:0.75,bulletSpeed:520,range:380,pattern:"spread3",pierce:false,desc:"Drei Impulse im Fächer, kurze Reichweite."},
-  weapon_lance:   {name:"Lanze",      fireCd:0.60,dmg:2.4, bulletSpeed:780,range:720,pattern:"single", pierce:true, desc:"Langsam, aber durchschlägt mehrere Gegner."},
-  weapon_kennung3:{name:"Kennung 3",  fireCd:0.16,dmg:1.3, bulletSpeed:700,range:620,pattern:"double", pierce:true, desc:"Was von ihm übrig blieb."}
+  weapon_pulse:    {name:"Puls-Kanone",  fireCd:0.24,dmg:1,   bulletSpeed:580,range:560,pattern:"single", pierce:false,burst:1,burstInterval:0,
+    desc:"Ausgewogen. Die Standardwaffe jedes Pulsgängers.",tag:"Ausgewogen"},
+  weapon_needler:  {name:"Nadler",       fireCd:0.13,dmg:0.55,bulletSpeed:660,range:480,pattern:"single", pierce:false,burst:1,burstInterval:0,
+    desc:"Sehr hohe Feuerrate, wenig Schaden pro Treffer.",tag:"Schnellfeuer"},
+  weapon_burstrifle:{name:"Stakkato",    fireCd:0.85,dmg:0.7, bulletSpeed:620,range:500,pattern:"single", pierce:false,burst:4,burstInterval:0.07,
+    desc:"Ein Antippen löst eine 4er-Salve aus, die auch nach dem Loslassen zu Ende läuft.",tag:"Salve ×4"},
+  weapon_scatter:  {name:"Schrot-Puls",  fireCd:0.46,dmg:0.75,bulletSpeed:520,range:380,pattern:"spread3",pierce:false,burst:1,burstInterval:0,
+    desc:"Drei Impulse im Fächer, kurze Reichweite. Jeder Klick trifft mit allen dreien gleichzeitig.",tag:"Fächer ×3"},
+  weapon_flak:     {name:"Streusalve",   fireCd:1.1, dmg:0.6, bulletSpeed:500,range:420,pattern:"spread3",pierce:false,burst:2,burstInterval:0.14,
+    desc:"Zwei Fächer-Wellen pro Klick (6 Impulse gesamt) - läuft nach dem Loslassen automatisch weiter.",tag:"Fächer ×3, Salve ×2"},
+  weapon_lance:    {name:"Lanze",        fireCd:0.60,dmg:2.4, bulletSpeed:780,range:720,pattern:"single", pierce:true, burst:1,burstInterval:0,
+    desc:"Langsam, aber durchschlägt mehrere Gegner.",tag:"Durchschlag"},
+  weapon_railgun:  {name:"Schienenkanone",fireCd:1.15,dmg:4.2,bulletSpeed:900,range:820,pattern:"single", pierce:true, burst:1,burstInterval:0,
+    desc:"Ein perfekt gezielter Klick statt Dauerfeuer - sehr hoher Schaden, sehr lange Reichweite, sehr langsam.",tag:"Präzision"},
+  weapon_kennung3: {name:"Kennung 3",    fireCd:0.16,dmg:1.3, bulletSpeed:700,range:620,pattern:"double", pierce:true, burst:1,burstInterval:0,
+    desc:"Was von ihm übrig blieb.",tag:"?"}
 };
 function equippedWeapon(){return WEAPONS[save.equipped.weapon]||WEAPONS.weapon_pulse;}
 
@@ -75,19 +90,19 @@ const COSMETICS={
   aura_amber:{slot:"aura",world:1},aura_ice:{slot:"aura",world:1},
   face_visor:{slot:"face",world:1},face_robot:{slot:"face",world:1},
   head_cap:{slot:"head",world:1},head_hardhat:{slot:"head",world:1},head_beanie:{slot:"head",world:1},head_bandana:{slot:"head",world:1},head_bolt:{slot:"head",world:1},
-  weapon_needler:{slot:"weapon",world:1},
+  weapon_needler:{slot:"weapon",world:1},weapon_burstrifle:{slot:"weapon",world:1},
   // World 2
   skin_violet:{slot:"skin",world:2},skin_toxic:{slot:"skin",world:2},skin_bubblegum:{slot:"skin",world:2},skin_slime:{slot:"skin",world:2},skin_crimson:{slot:"skin",world:2},
   aura_magenta:{slot:"aura",world:2},aura_lime:{slot:"aura",world:2},aura_green:{slot:"aura",world:2},
   face_shades:{slot:"face",world:2},face_angry:{slot:"face",world:2},face_cool:{slot:"face",world:2},face_ninja:{slot:"face",world:2},
   head_mohawk:{slot:"head",world:2},head_antenna:{slot:"head",world:2},head_ears:{slot:"head",world:2},head_party:{slot:"head",world:2},head_spike:{slot:"head",world:2},
-  weapon_scatter:{slot:"weapon",world:2},
+  weapon_scatter:{slot:"weapon",world:2},weapon_flak:{slot:"weapon",world:2},
   // World 3
   skin_gold:{slot:"skin",world:3},skin_obsidian:{slot:"skin",world:3},skin_ember:{slot:"skin",world:3},skin_void:{slot:"skin",world:3},
   aura_red:{slot:"aura",world:3},aura_purple:{slot:"aura",world:3},aura_white:{slot:"aura",world:3},aura_prism:{slot:"aura",world:3},
   face_cyclops:{slot:"face",world:3},face_star:{slot:"face",world:3},face_dead:{slot:"face",world:3},face_sleepy:{slot:"face",world:3},
   head_crown:{slot:"head",world:3},head_halo:{slot:"head",world:3},head_horns:{slot:"head",world:3},head_wizard:{slot:"head",world:3},head_tophat:{slot:"head",world:3},
-  weapon_lance:{slot:"weapon",world:3},
+  weapon_lance:{slot:"weapon",world:3},weapon_railgun:{slot:"weapon",world:3},
   // Secret (Story-Ende)
   skin_kennung3:{slot:"skin",world:99,secret:true},weapon_kennung3:{slot:"weapon",world:99,secret:true}
 };
@@ -224,6 +239,8 @@ function drawWeaponIcon(c,id,size){
   }
   c.shadowBlur=0;c.beginPath();c.arc(0,size*0.14,size*0.08,0,7);c.fill();
   c.restore();
+  if(wp.burst>1){c.font=`${Math.round(size*0.16)}px system-ui,sans-serif`;c.textAlign="right";
+    c.fillStyle=col;c.fillText("×"+wp.burst,size-4,size*0.2);}
 }
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}

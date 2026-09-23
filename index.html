@@ -37,14 +37,31 @@
       </div>
     </div>
     <div class="btnrow menu-utils">
-      <button class="btn ghost small muteToggle" id="btnMute">🔊 Sound</button>
-      <button class="btn ghost small" id="btnExport">💾 Export</button>
-      <button class="btn ghost small" id="btnImport">📂 Import</button>
-      <button class="btn ghost small" id="btnReset" title="Fortschritt löschen">🗑 Reset</button>
-      <input type="file" id="importFile" accept="application/json" style="display:none">
+      <button class="btn ghost small" id="btnSettings">⚙ Einstellungen</button>
     </div>
   </div>
   <div class="credit">v1.7 · BLACKOUT</div>
+</div>
+
+<div class="screen scrollable" id="scr-settings">
+  <div class="topbar"><button class="btn ghost" data-back="menu">← Zurück</button><div></div></div>
+  <div class="wrap" style="max-width:460px">
+    <h2 style="text-align:center">Einstellungen</h2>
+    <div class="col" style="align-items:stretch;gap:18px;margin-top:14px">
+      <div>
+        <button class="btn ghost" id="btnAutoFire" style="width:100%">🔫 Automatisch schießen: <b id="afState">An</b></button>
+        <div class="sub" style="text-align:left;margin:8px 2px 0">Aus: SHOOT-Taste (Handy) bzw. Maustaste auf dem Spielfeld (PC) halten zum Feuern. An: feuert automatisch auf sichtbare Gegner.</div>
+      </div>
+      <button class="btn ghost" id="btnLayoutEdit" style="width:100%">🎮 Steuerung anordnen</button>
+      <div class="btnrow" style="justify-content:stretch">
+        <button class="btn ghost small muteToggle" id="btnMute">🔊 Sound</button>
+        <button class="btn ghost small" id="btnExport">💾 Export</button>
+        <button class="btn ghost small" id="btnImport">📂 Import</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+      <button class="btn ghost" id="btnReset" style="width:100%">🗑 Fortschritt löschen</button>
+    </div>
+  </div>
 </div>
 
 <div class="screen scrollable" id="scr-codex">
@@ -123,7 +140,9 @@
   <div class="combo" id="comboLbl"></div>
   <div class="toast" id="toast"></div>
   <div class="pingwrap"><div style="display:flex;gap:14px;align-items:flex-end">
-    <div class="pingbtn dashbtn" id="dashBtn">DASH</div><div class="pingbtn" id="pingBtn">PING</div>
+    <div class="pingbtn dashbtn" id="dashBtn">DASH</div>
+    <div class="pingbtn shootbtn" id="shootBtn">SHOOT</div>
+    <div class="pingbtn" id="pingBtn">PING</div>
   </div></div>
 </div>
 <div id="stick"></div>

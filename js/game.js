@@ -44,7 +44,21 @@ function renderStick(){if(!touchMove.active){stickEl.innerHTML="";return;}
     <div class="stick-knob" style="left:${touchMove.bx+touchMove.dx*55}px;top:${touchMove.by+touchMove.dy*55}px"></div>`;}
 document.getElementById("pingBtn").addEventListener("pointerdown",e=>{e.preventDefault();doPing();});
 document.getElementById("dashBtn").addEventListener("pointerdown",e=>{e.preventDefault();doDash();});
-cv.addEventListener("pointerdown",()=>{if(game.state==="playing"&&!isTouch())doPing();});
+// Schießen: per Einstellung entweder Auto-Fire (Standard) oder Halten (SHOOT-Button/Maustaste).
+// Pointer-Capture auf dem auslösenden Element statt globaler Fenster-Listener, damit
+// pointerup/pointercancel zuverlässig ankommen, auch wenn der Finger/die Maus beim
+// Loslassen leicht verrutscht ist (das war der Grund für das "buggy" Verhalten vorher).
+let shootHeld=false;
+const shootBtnEl=document.getElementById("shootBtn");
+function syncShootBtnVisibility(){shootBtnEl.classList.toggle("enabled",!save.autoFire);}
+shootBtnEl.addEventListener("pointerdown",e=>{e.preventDefault();if(game.state!=="playing"||save.autoFire)return;
+  shootHeld=true;try{shootBtnEl.setPointerCapture(e.pointerId);}catch(_){}});
+["pointerup","pointercancel"].forEach(ev=>shootBtnEl.addEventListener(ev,()=>{shootHeld=false;}));
+cv.addEventListener("pointerdown",e=>{if(game.state!=="playing"||isTouch())return;
+  if(save.autoFire){doPing();return;}
+  shootHeld=true;try{cv.setPointerCapture(e.pointerId);}catch(_){}});
+["pointerup","pointercancel"].forEach(ev=>cv.addEventListener(ev,()=>{shootHeld=false;}));
+addEventListener("blur",()=>{shootHeld=false;});
 
 /* ================= Helpers ================= */
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -95,14 +109,9 @@ function doDash(){if(game.state!=="playing"||!game.player)return;const p=game.pl
   p.dashing=DASH_TIME;p.dashCd=DASH_CD*(p.dashCdMult||1);p.inv=Math.max(p.inv,DASH_TIME+0.1);
   Audio_.ensure();Audio_.dash();}
 
-function fireWeapon(p){
-  const wp=equippedWeapon();
-  let target=null,bd=1e9;
-  for(const e of game.enemies){if(e.vis<0.28)continue;const d=Math.hypot(e.x-p.x,e.y-p.y);
-    if(d<wp.range&&d<bd){bd=d;target=e;}}
-  if(!target)return;
-  p.fireCd=wp.fireCd*(p.buffs.rapid?0.55:1)*(p.fireRateMult||1);
-  p.dir=Math.atan2(target.y-p.y,target.x-p.x);
+// Ein "Schuss" = ein Auslösen des Waffenmusters (single/spread3/double + ggf. Doppelschuss-Powerup).
+// Bei Salvenwaffen (burst>1) ist das nur EIN Teilschuss der Salve, siehe fireWeapon()/Burst-Tick in update().
+function fireShot(p,wp){
   const pierce=wp.pierce||!!p.buffs.pierce;
   const dmg=wp.dmg*(p.dmgMult||1);
   const life=wp.range/wp.bulletSpeed+0.15;
@@ -111,6 +120,21 @@ function fireWeapon(p){
   else{mkBullet(p.dir);if(wp.pattern==="double")mkBullet(p.dir+0.12);}
   if(p.buffs.double)mkBullet(p.dir+(wp.pattern==="double"?0.24:0.12));
   emitNoise(p.x,p.y,200,true);Audio_.shot();
+}
+// Löst eine Waffe aus. Bei Salvenwaffen (burst>1) wird nur der erste Teilschuss sofort
+// gefeuert, der Rest läuft per p.burst-Ticker in update() automatisch weiter - auch wenn
+// SHOOT längst wieder losgelassen wurde. So macht ein kurzes Antippen trotzdem Sinn,
+// obwohl die Hände eigentlich für Bewegen/Dash/Ping gebraucht werden.
+function fireWeapon(p){
+  const wp=equippedWeapon();
+  let target=null,bd=1e9;
+  for(const e of game.enemies){if(e.vis<0.28)continue;const d=Math.hypot(e.x-p.x,e.y-p.y);
+    if(d<wp.range&&d<bd){bd=d;target=e;}}
+  if(!target)return;
+  p.fireCd=wp.fireCd*(p.buffs.rapid?0.55:1)*(p.fireRateMult||1);
+  p.dir=Math.atan2(target.y-p.y,target.x-p.x);
+  fireShot(p,wp);
+  if(wp.burst>1)p.burst={wp,left:wp.burst-1,timer:wp.burstInterval};
 }
 
 /* ================= Level start ================= */
@@ -123,7 +147,7 @@ function startLevel(worldId,levelIdx){
   game.arenaH=Math.round(Math.max(1150,H*1.4)*(tight?0.72:1));
   game.enemies=[];game.bullets=[];game.enemyBullets=[];game.particles=[];game.pickups=[];game.pulses=[];game.noises=[];
   game.kills=0;game.killsNeeded=cfg.kills;game.score=0;game.combo=0;game.maxCombo=0;game.comboTimer=0;
-  game.spawnTimer=0.5;game.alive=0;game.t=0;game.pingCd=0;game.shake=0;
+  game.spawnTimer=0.5;game.alive=0;game.t=0;game.pingCd=0;game.shake=0;shootHeld=false;syncShootBtnVisibility();
   game.bossSpawned=false;game.bossKilled=false;game.gotCosmetics=[];
   game.blindTimer=game.levelMod==="blind_start"?10:0;
   game.blackoutActive=false;game.blackoutDur=0;
@@ -171,6 +195,10 @@ function startLevel(worldId,levelIdx){
   const modLabel=game.levelMod?` — ${LEVEL_MODS[game.levelMod].label}`:"";
   showToast(`${world.name} · Level ${levelIdx+1}${modLabel}`,2000);
   checkCurseOffer();
+  // kurz nach dem Level-Namen zusätzlich zeigen, was die ausgerüstete Waffe kann -
+  // damit man sie erkennt, ohne extra in den Charakter-Bildschirm wechseln zu müssen
+  setTimeout(()=>{if(game.state==="playing"&&game.world===world&&game.levelIdx===levelIdx){
+    const wp=equippedWeapon();showToast(`🔫 ${wp.name} — ${wp.desc}`,2600);}},2100);
 }
 
 /* ================= Spawning ================= */
@@ -337,9 +365,12 @@ function update(dt){
   }
   spawnLater.forEach(t=>{if(game.alive<cfg.maxAlive+3)spawnEnemy(t);});
 
-  // auto fire (mit den Werten der ausgerüsteten Waffe)
+  // fire: Auto-Fire (Standard) oder nur solange SHOOT gehalten wird - je nach Einstellung
   p.fireCd-=dt;
-  if(p.fireCd<=0)fireWeapon(p);
+  if(p.fireCd<=0&&(save.autoFire||shootHeld))fireWeapon(p);
+  // laufende Salve zu Ende feuern, unabhängig davon ob SHOOT noch gehalten wird
+  if(p.burst&&p.burst.left>0){p.burst.timer-=dt;
+    if(p.burst.timer<=0){p.burst.timer=p.burst.wp.burstInterval;fireShot(p,p.burst.wp);p.burst.left--;}}
 
   // player bullets
   for(const b of game.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
@@ -588,6 +619,7 @@ function render(){
   ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   const pb=document.getElementById("pingBtn");if(game.pingCd>0||game.blindTimer>0)pb.classList.add("cooling");else pb.classList.remove("cooling");
   const db=document.getElementById("dashBtn");if(p.dashCd>0)db.classList.add("cooling");else db.classList.remove("cooling");
+  shootBtnEl.classList.toggle("active",shootHeld);
 }
 
 /* ================= Ending Sequence ================= */
@@ -757,7 +789,8 @@ function updateHud(){const p=game.player;if(!p)return;
   {const bk=Object.keys(p.buffs);document.getElementById("hudBuff").textContent=bk.length?bk.map(k=>`${POWERS[k].name} ${Math.ceil(p.buffs[k])}s`).join(" · "):"";}
   document.getElementById("hudKills").textContent=game.cfg.boss?`${game.kills}/${game.killsNeeded} + Boss`:`${game.kills} / ${game.killsNeeded} Kills`;
   const curseLabel=game.curses.length?` · 🔮${game.curses.map(id=>CURSES[id].name).join(", ")}`:"";
-  document.getElementById("hudLevel").textContent=`${game.world.name} · Lvl ${game.levelIdx+1}`+(game.levelMod?` · ${LEVEL_MODS[game.levelMod].label}`:"")+curseLabel+` · 🔫${equippedWeapon().name}`;}
+  const wp=equippedWeapon();
+  document.getElementById("hudLevel").textContent=`${game.world.name} · Lvl ${game.levelIdx+1}`+(game.levelMod?` · ${LEVEL_MODS[game.levelMod].label}`:"")+curseLabel+` · 🔫${wp.name} (${wp.tag})`;}
 let comboTO;function showCombo(c){const el=document.getElementById("comboLbl");el.textContent=`${c}× COMBO`;
   el.classList.add("show");clearTimeout(comboTO);comboTO=setTimeout(()=>el.classList.remove("show"),700);}
 function hideCombo(){document.getElementById("comboLbl").classList.remove("show");}
@@ -821,7 +854,7 @@ function showResult(win,info){
 function goToWorld(wid){buildLevels(wid);showScreen("levels");}
 
 /* ================= Pause ================= */
-function pauseGame(){if(game.state!=="playing")return;game.state="paused";
+function pauseGame(){if(game.state!=="playing")return;game.state="paused";shootHeld=false;
   document.getElementById("hud").classList.remove("active");showScreen("pause");}
 function resumeGame(){if(game.state!=="paused")return;game.state="playing";showScreen(null);
   document.getElementById("hud").classList.add("active");lastT=performance.now();requestAnimationFrame(loop);}
@@ -835,7 +868,7 @@ const fadeEl=document.getElementById("fade");
 function startLevelFade(w,l){fadeEl.classList.add("on");setTimeout(()=>{startLevel(w,l);fadeEl.classList.remove("on");},300);}
 
 /* ================= Screens ================= */
-const screens={menu:"scr-menu",codex:"scr-codex",leaderboard:"scr-leaderboard",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
+const screens={menu:"scr-menu",settings:"scr-settings",codex:"scr-codex",leaderboard:"scr-leaderboard",worlds:"scr-worlds",levels:"scr-levels",char:"scr-char",pause:"scr-pause",result:"scr-result",epilogue:"scr-epilogue"};
 function showScreen(name){Object.values(screens).forEach(id=>document.getElementById(id).classList.remove("active"));
   document.getElementById("stick").innerHTML="";if(name)document.getElementById(screens[name]).classList.add("active");}
 
@@ -901,7 +934,19 @@ function buildCharacter(){
         if(g.slot==="weapon"&&WEAPONS[id].desc)cell.title=WEAPONS[id].desc;
         cell.onclick=()=>{save.equipped[g.slot]=id;persist();buildCharacter();Audio_.pickup();};}
       grid.appendChild(cell);});
-    sec.appendChild(grid);slotsEl.appendChild(sec);});
+    sec.appendChild(grid);
+    if(g.slot==="weapon"){
+      // Beschreibung sichtbar statt nur als Hover-Tooltip (auf dem Handy gibt's kein Hover)
+      const legend=document.createElement("div");legend.style.cssText="margin-top:10px;display:flex;flex-direction:column;gap:5px;";
+      g.ids.filter(id=>save.owned.includes(id)).forEach(id=>{
+        const row=document.createElement("div");row.style.cssText="font-size:11.5px;color:var(--muted);line-height:1.4;";
+        const equipped=save.equipped.weapon===id;
+        row.innerHTML=`<b style="color:${equipped?"var(--gold)":"var(--cyan)"}">${cosName(id)}${equipped?" ★":""}</b> <span style="opacity:.75">(${WEAPONS[id].tag})</span> — ${WEAPONS[id].desc}`;
+        legend.appendChild(row);
+      });
+      sec.appendChild(legend);
+    }
+    slotsEl.appendChild(sec);});
   if(!previewRAF)animatePreview();
 }
 
@@ -918,9 +963,71 @@ document.getElementById("btnCharTop").onclick=()=>{buildCharacter();showScreen("
 document.getElementById("btnCharTop2").onclick=()=>{buildCharacter();showScreen("char");};
 document.getElementById("btnMute").onclick=()=>{save.muted=!save.muted;persist();refreshMenuStats();Audio_.muteChanged();};
 document.getElementById("btnReset").onclick=()=>{if(confirm("Wirklich den gesamten Fortschritt löschen? (Cosmetics, Welten, Highscore)")){
-  save=structuredClone(DEFAULT_SAVE);persist();refreshMenuStats();}};
+  save=structuredClone(DEFAULT_SAVE);persist();refreshMenuStats();refreshSettingsUI();syncShootBtnVisibility();}};
 document.querySelectorAll("[data-back]").forEach(b=>{b.onclick=()=>{const t=b.dataset.back;
   if(t==="menu"){refreshMenuStats();showScreen("menu");}else if(t==="worlds"){buildWorlds();showScreen("worlds");}else showScreen(t);};});
+
+/* ================= Einstellungen ================= */
+function refreshSettingsUI(){document.getElementById("afState").textContent=save.autoFire?"An":"Aus";}
+document.getElementById("btnSettings").onclick=()=>{refreshSettingsUI();showScreen("settings");};
+document.getElementById("btnAutoFire").onclick=()=>{save.autoFire=!save.autoFire;persist();refreshSettingsUI();syncShootBtnVisibility();};
+document.getElementById("btnLayoutEdit").onclick=()=>openLayoutEditor();
+
+/* ---- Steuerung anordnen: Buttons per Drag frei auf dem Bildschirm platzieren ---- */
+let layoutEditMode=false;
+function applyControlPositions(){
+  ["dashBtn","shootBtn","pingBtn"].forEach(id=>{
+    const el=document.getElementById(id),cp=save.controlPos[id];
+    if(cp){el.style.position="fixed";el.style.right=cp.right+"px";el.style.bottom=cp.bottom+"px";el.style.left="auto";el.style.top="auto";}
+    else{el.style.position="";el.style.right="";el.style.bottom="";el.style.left="";el.style.top="";}
+  });
+}
+function makeDraggable(el){
+  el.addEventListener("pointerdown",e=>{
+    if(!layoutEditMode)return;e.preventDefault();
+    const rect=el.getBoundingClientRect();const offX=e.clientX-rect.left,offY=e.clientY-rect.top;
+    el.setPointerCapture(e.pointerId);el.classList.add("dragging");
+    function move(ev){
+      let left=clamp(ev.clientX-offX,4,innerWidth-rect.width-4),top=clamp(ev.clientY-offY,4,innerHeight-rect.height-4);
+      el.style.position="fixed";el.style.left=left+"px";el.style.top=top+"px";el.style.right="auto";el.style.bottom="auto";
+    }
+    function up(){
+      el.removeEventListener("pointermove",move);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up);
+      el.classList.remove("dragging");
+      const r=el.getBoundingClientRect();
+      save.controlPos[el.id]={right:Math.round(innerWidth-r.right),bottom:Math.round(innerHeight-r.bottom)};
+      persist();
+    }
+    el.addEventListener("pointermove",move);el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);
+  });
+}
+["dashBtn","shootBtn","pingBtn"].forEach(id=>makeDraggable(document.getElementById(id)));
+function openLayoutEditor(){
+  layoutEditMode=true;
+  showScreen(null); // Screens liegen über dem HUD (z-index) - erst ausblenden, sonst unsichtbar
+  document.getElementById("hud").classList.add("active");
+  document.getElementById("hpFill").style.width="60%";
+  document.getElementById("hudScore").textContent="0";
+  document.getElementById("hudKills").textContent="—";
+  document.getElementById("hudLevel").textContent="Buttons ziehen, um sie zu verschieben";
+  document.getElementById("hudBuff").textContent="";
+  document.getElementById("btnPause").style.display="none";
+  shootBtnEl.classList.toggle("enabled",!save.autoFire);
+  applyControlPositions();
+  const bar=document.createElement("div");bar.id="layoutEditBar";
+  bar.style.cssText="position:fixed;left:0;right:0;bottom:16px;display:flex;gap:10px;justify-content:center;z-index:30;";
+  bar.innerHTML=`<button class="btn small" id="layoutReset">Zurücksetzen</button><button class="btn primary small" id="layoutDone">Fertig</button>`;
+  document.body.appendChild(bar);
+  document.getElementById("layoutReset").onclick=()=>{save.controlPos={};persist();applyControlPositions();};
+  document.getElementById("layoutDone").onclick=closeLayoutEditor;
+}
+function closeLayoutEditor(){
+  layoutEditMode=false;
+  document.getElementById("hud").classList.remove("active");
+  document.getElementById("btnPause").style.display="";
+  document.getElementById("layoutEditBar")?.remove();
+  showScreen("settings");
+}
 
 /* ================= Save Export / Import ================= */
 document.getElementById("btnExport").onclick=()=>{
@@ -1010,7 +1117,7 @@ if("serviceWorker" in navigator){
 }
 
 /* ================= Boot ================= */
-refreshMenuStats();showScreen("menu");
+refreshMenuStats();applyControlPositions();syncShootBtnVisibility();showScreen("menu");
 (function menuBg(){if(game.state==="playing"||game.state==="paused"){requestAnimationFrame(menuBg);return;}
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle="#04060c";ctx.fillRect(0,0,W,H);
   const t=performance.now()/1000;
