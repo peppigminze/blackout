@@ -27,20 +27,20 @@
       <button class="btn ghost" id="btnCodex">🗄 Archiv</button>
       <button class="btn ghost" id="btnLeaderboard">🌐 Bestenliste</button>
     </div>
-    <div class="stats">
-      <div class="s"><b id="m-hs">0</b>Highscore</div>
-      <div class="s"><b id="m-kills">0</b>Kills gesamt</div>
-      <div class="s"><b id="m-cos">0/0</b>Cosmetics</div>
-      <div class="s"><b id="m-worlds">0/3</b>Welten</div>
-      <div class="s"><b id="m-lore">0/0</b>Fragmente</div>
+    <div class="statspanel">
+      <div class="stats">
+        <div class="s"><b id="m-hs">0</b>Highscore</div>
+        <div class="s"><b id="m-kills">0</b>Kills gesamt</div>
+        <div class="s"><b id="m-cos">0/0</b>Cosmetics</div>
+        <div class="s"><b id="m-worlds">0/3</b>Welten</div>
+        <div class="s"><b id="m-lore">0/0</b>Fragmente</div>
+      </div>
     </div>
-    <div class="btnrow" style="margin-top:26px">
-      <button class="btn ghost muteToggle" id="btnMute">🔊 Sound</button>
-      <button class="btn ghost" id="btnReset">Fortschritt löschen</button>
-    </div>
-    <div class="btnrow" style="margin-top:10px">
+    <div class="btnrow menu-utils">
+      <button class="btn ghost small muteToggle" id="btnMute">🔊 Sound</button>
       <button class="btn ghost small" id="btnExport">💾 Export</button>
       <button class="btn ghost small" id="btnImport">📂 Import</button>
+      <button class="btn ghost small" id="btnReset" title="Fortschritt löschen">🗑 Reset</button>
       <input type="file" id="importFile" accept="application/json" style="display:none">
     </div>
   </div>
@@ -123,7 +123,9 @@
   <div class="combo" id="comboLbl"></div>
   <div class="toast" id="toast"></div>
   <div class="pingwrap"><div style="display:flex;gap:14px;align-items:flex-end">
-    <div class="pingbtn dashbtn" id="dashBtn">DASH</div><div class="pingbtn" id="pingBtn">PING</div>
+    <div class="pingbtn dashbtn" id="dashBtn">DASH</div>
+    <div class="pingbtn shootbtn" id="shootBtn">SHOOT</div>
+    <div class="pingbtn" id="pingBtn">PING</div>
   </div></div>
 </div>
 <div id="stick"></div>
